@@ -78,6 +78,12 @@ jobs:
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
           SYM="XAUUSD=X,USDEGP=X,DX-Y.NYB,%5ETNX,%5EVIX,GLD"
           GOK=0
+          # المصدر الأول: فرع gold (ريليه الذهب بيسحبه من ياهو كل ساعة بالكوكيز والكرامب)
+          if curl -fsSL --retry 2 --max-time 30 -o gold_raw.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/gold/gold.json" && jq -e '.["XAUUSD=X"].close' gold_raw.json >/dev/null 2>&1; then
+            GOK=1
+            echo "✅ تاريخ الذهب اتيج من فرع gold (ريليه الذهب)"
+          fi
+          if [ "$GOK" != "1" ]; then
           for HOST in query1 query2; do
             CODE=$(curl -sS --max-time 40 -A "$UA" -H "Accept: application/json" -o gold_raw.json -w "%{http_code}" "https://$HOST.finance.yahoo.com/v8/finance/spark?symbols=$SYM&range=1y&interval=1d" || echo 000)
             if [ "$CODE" = "200" ] && jq -e '.["XAUUSD=X"].close' gold_raw.json >/dev/null 2>&1; then
@@ -85,6 +91,7 @@ jobs:
             fi
             echo "⚠️ $HOST: HTTP $CODE — محاولة تانية"
           done
+          fi
           if [ "$GOK" != "1" ]; then
             echo "⚠️ ياهو رفض — قسم الذهب هيشتغل بالسعر الحالي بس"
             rm -f gold_raw.json
