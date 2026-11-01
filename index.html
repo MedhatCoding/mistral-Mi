@@ -2790,6 +2790,11 @@ function paperGet(){
   if(!Array.isArray(w.bench))w.bench=[];
   if(!w.brefs||typeof w.brefs!=="object")w.brefs={};
   if(!Array.isArray(w.alerts))w.alerts=[];
+  /* تنظيف الصفقات المعطوبة القديمة: أي إغلاق اتسجل بدون سعر حقيقي (عائد صفر أو غير رقمي أو بيع=شراء) ميتحسبش في الإحصائيات */
+  if(w.hist.length){
+    const clean=w.hist.filter(function(h){return h&&h.s&&typeof h.ret==="number"&&isFinite(h.ret)&&h.b>0&&h.sp>0&&h.sp!==h.b&&Math.abs(h.ret)>=1});
+    if(clean.length!==w.hist.length){console.log("🧹 ااتشالت "+(w.hist.length-clean.length)+" صفقة معطوبة من السجل");w.hist=clean;}
+  }
   return w;
 }
 function paperToday(){
@@ -2987,7 +2992,7 @@ function renderPaper(){
    +'<div class="metric"><div class="lbl">مراكز مفتوحة / صفقات مقفولة</div><div class="val">'+w.pos.length+' / '+n+'</div></div>'
    +'<div class="metric"><div class="lbl">نسبة الصفقات الرابحة</div><div class="val" style="color:'+colWr+'">'+(wr==null?"—":wr+"%")+'</div></div>'
    +'<div class="metric"><div class="lbl">متوسط عائد الصفقة</div><div class="val" style="color:'+colAvg+'">'+(avg==null?"—":(avg>=0?"+":"")+avg.toFixed(1)+"%")+'</div></div>'
-   +'<div class="metric"><div class="lbl">أفضل صفقة</div><div class="val" style="color:var(--green)">'+(best==null?"—":"+"+best.toFixed(1)+"%")+'</div></div>'
+   +'<div class="metric"><div class="lbl">أفضل صفقة</div><div class="val" style="color:var(--green)">'+(best==null?"—":(best>=0?"+":"")+best.toFixed(1)+"%")+'</div></div>'
    +'<div class="metric"><div class="lbl">أسوأ صفقة</div><div class="val" style="color:var(--red)">'+(worst==null?"—":worst.toFixed(1)+"%")+'</div></div>'
    +'<div class="metric"><div class="lbl">عائد متوسط السوق (مرجع)</div><div class="val" style="color:'+colB+'">'+(bRet>=0?"+":"")+bRet.toFixed(1)+'%</div></div>'
    +'<div class="metric"><div class="lbl">ألفا — تفوق البوت على السوق</div><div class="val" style="color:'+colA+'">'+(alpha>=0?"+":"")+alpha.toFixed(1)+'%</div></div>'
