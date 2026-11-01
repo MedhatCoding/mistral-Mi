@@ -4276,7 +4276,14 @@ init();
   if(typeof window.openStock!=="function")return;
   var egxOpenOrig=window.openStock;
   window.openStock=function(){
-    var r=egxOpenOrig.apply(<script>/* EGX33-GOLD-CARDS: توصية مؤشر EGX33 + توصيات الذهب جوه التطبيق — نفس منطق التقرير اليومي بالظبط */
+    var r=egxOpenOrig.apply(this,arguments);
+    Promise.resolve(r).then(egxVolInject).catch(function(){});
+    return r
+  };
+})();
+</script>
+
+<script>/* EGX33-GOLD-CARDS: توصية مؤشر EGX33 + توصيات الذهب جوه التطبيق — نفس منطق التقرير اليومي بالظبط */
 (function(){
 "use strict";
 var APP_GOLD_TS=0;
