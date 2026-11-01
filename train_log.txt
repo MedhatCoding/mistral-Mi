@@ -1,4 +1,4 @@
-start 2026-10-25T20:59:50.461957+00:00
+start 2026-11-01T22:13:30.972911+00:00
 ACGC samples: 1131
 ETEL samples: 1131
 OCDI samples: 1131
@@ -49,11 +49,11 @@ TAQA fetch failed: <HTTPError 404: 'Not Found'>
 TAQA samples: 0
 MNHD fetch failed: <HTTPError 404: 'Not Found'>
 MNHD samples: 0
-total: 49764 (relative-median label, kept 49764/49773) symbols: 44 span: 2022-01-17 -> 2026-09-23
-walk-forward fold 1: auc=0.481 train_n=9952 test_n=9952
-walk-forward fold 2: auc=0.522 train_n=19904 test_n=9952
-walk-forward fold 3: auc=0.522 train_n=29856 test_n=9952
-walk-forward fold 4: auc=0.527 train_n=39808 test_n=9952
+total: 49764 (relative-median label, kept 49764/49773) symbols: 44 span: 2022-01-24 -> 2026-09-30
+walk-forward fold 1: auc=0.485 train_n=9952 test_n=9952
+walk-forward fold 2: auc=0.52 train_n=19904 test_n=9952
+walk-forward fold 3: auc=0.526 train_n=29856 test_n=9952
+walk-forward fold 4: auc=0.521 train_n=39808 test_n=9952
 walk-forward mean auc: 0.513
-platt calibration: {"a": 0.6845, "b": -0.0229}
-model v8 written - trees: 13 nodes: 793 acc: 50.6 auc: 0.515 wf_auc: 0.513 platt: {"a": 0.6845, "b": -0.0229} cal buckets: 2
+platt calibration: {"a": 0.7406, "b": -0.0214}
+model v8 written - trees: 17 nodes: 1037 acc: 50.5 auc: 0.504 wf_auc: 0.513 platt: {"a": 0.7406, "b": -0.0214} cal buckets: 2
