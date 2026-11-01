@@ -2828,13 +2828,13 @@ function botTick(manual){
     if(cur==null||age>3*86400000)continue;
     if(cur>=p.t){
       w.cash+=p.q*cur;
-      w.hist.push({s:p.s,q:p.q,b:p.b,sp:cur,ret:(cur-p.b)/p.b*100,d:p.d,dd:Date.now(),r:"هدف"});
+      w.hist.push({s:p.s,q:p.q,b:p.b,sp:cur,ret:(cur-p.b)/p.b*100,d:p.d,dd:Date.now(),r:"هدف",t:p.t,sl:p.sl,n:p.n||null,pt:p.pt||null,pl:(cur-p.b)*p.q});
       w.alerts.push({s:p.s,ret:(cur-p.b)/p.b*100,r:"هدف",dd:Date.now(),seen:0});
       w.pos.splice(i,1);
       acted.push("🎯 باع "+p.s+" عند الهدف "+NF(cur));
     }else if(cur<=p.sl){
       w.cash+=p.q*cur;
-      w.hist.push({s:p.s,q:p.q,b:p.b,sp:cur,ret:(cur-p.b)/p.b*100,d:p.d,dd:Date.now(),r:"وقف"});
+      w.hist.push({s:p.s,q:p.q,b:p.b,sp:cur,ret:(cur-p.b)/p.b*100,d:p.d,dd:Date.now(),r:"وقف",t:p.t,sl:p.sl,n:p.n||null,pt:p.pt||null,pl:(cur-p.b)*p.q});
       w.alerts.push({s:p.s,ret:(cur-p.b)/p.b*100,r:"وقف",dd:Date.now(),seen:0});
       w.pos.splice(i,1);
       acted.push("⛔ باع "+p.s+" عند الوقف "+NF(cur));
@@ -2863,7 +2863,7 @@ function botTick(manual){
       const gr=(x.v&&x.v.t1&&x.price)?x.v.t1/x.price:1.08;
       const gs=(x.v&&x.v.stop&&x.price)?x.v.stop/x.price:0.94;
       w.cash-=q*cur;
-      w.pos.push({s:x.sym,q:q,b:cur,t:cur*gr,sl:cur*gs,d:Date.now(),sc:x.v?x.v.sc:0,n:x.n});
+      w.pos.push({s:x.sym,q:q,b:cur,t:cur*gr,sl:cur*gs,d:Date.now(),sc:x.v?x.v.sc:0,n:x.n,stars:x.v?x.v.stars:0,pr:x.v?x.v.rec:"—",pt:pk.time});
       held[x.sym]=1;
       acted.push("📈 اشترى "+x.sym+" — "+q+" سهم بـ"+NF(cur));
     }
@@ -2928,6 +2928,9 @@ function renderPaper(){
   const avg=n?w.hist.reduce(function(a,h){return a+h.ret},0)/n:null;
   const best=n?Math.max.apply(null,w.hist.map(function(h){return h.ret})):null;
   const worst=n?Math.min.apply(null,w.hist.map(function(h){return h.ret})):null;
+  const losses=n?n-wins:0;
+  const realized=n?w.hist.reduce(function(a,h){return a+((h.pl!=null)?h.pl:((h.sp-h.b)*(h.q||0)))},0):0;
+  const dstr=function(ts){try{return new Date(ts).toLocaleDateString("ar-EG")}catch(e){return "—"}};
   const colPl=pl>=0?"var(--green)":"var(--red)";
   const colWr=wr==null?"var(--muted)":(wr>=50?"var(--green)":"var(--red)");
   const colAvg=avg==null?"var(--muted)":(avg>=0?"var(--green)":"var(--red)");
@@ -2976,12 +2979,13 @@ function renderPaper(){
     const up=(cur-p.b)/p.b*100;
     const den=(p.t-p.b)||1e-9;
     const prog=Math.max(0,Math.min(100,(cur-p.b)/den*100));
-    return '<tr class="click" onclick="openStock(&quot;'+p.s+'&quot;)"><td><b>'+(BYSYM[p.s]?BYSYM[p.s].n:p.s)+'</b> <span class="sect-tag">'+p.s+'</span></td><td class="num">'+p.q+'</td><td class="num">'+NF(p.b)+'</td><td class="num" style="color:var(--accent2)">'+NF(p.t)+'</td><td class="num" style="color:var(--amber)">'+NF(p.sl)+'</td><td class="num">'+NF(cur)+'</td><td class="'+(up>=0?"up":"down")+'">'+(up>=0?"+":"")+up.toFixed(1)+'%</td><td style="min-width:80px"><div class="bar"><div style="width:'+prog.toFixed(0)+'%"></div></div></td></tr>';
+    return '<tr class="click" onclick="openStock(&quot;'+p.s+'&quot;)"><td><b>'+(BYSYM[p.s]?BYSYM[p.s].n:p.s)+'</b> <span class="sect-tag">'+p.s+'</span></td><td class="num">'+dstr(p.d)+'</td><td class="num">'+p.q+'</td><td>'+(p.pr?('<span class="badge b-neu">'+p.pr+'</span>'):'—')+(p.stars?' <span class="stars">'+'★'.repeat(p.stars)+'</span>':'')+'</td><td class="num">'+NF(p.b)+'</td><td class="num" style="color:var(--accent2)">'+NF(p.t)+'</td><td class="num" style="color:var(--amber)">'+NF(p.sl)+'</td><td class="num">'+NF(cur)+'</td><td class="'+(up>=0?"up":"down")+'">'+(up>=0?"+":"")+up.toFixed(1)+'%</td><td style="min-width:80px"><div class="bar"><div style="width:'+prog.toFixed(0)+'%"></div></div></td></tr>';
   }).join("");
-  const crows=w.hist.slice(-12).reverse().map(function(h){
+  const crows=w.hist.slice().reverse().map(function(h){
     const days=Math.max(1,Math.round((h.dd-h.d)/86400000));
-    const why=h.r==="هدف"?"🎯 وصل المستهدف":(h.r==="وقف"?"⛔ لمس الوقف":(h.r||"—"));
-    return '<tr><td><b>'+(BYSYM[h.s]?BYSYM[h.s].n:h.s)+'</b> <span class="sect-tag">'+h.s+'</span></td><td class="num">'+NF(h.b)+'</td><td class="num">'+NF(h.sp)+'</td><td class="'+(h.ret>=0?"up":"down")+'"><b>'+(h.ret>=0?"+":"")+h.ret.toFixed(1)+'%</b></td><td>'+why+'</td><td class="num">'+days+' يوم</td></tr>';
+    const why=h.r==="هدف"?"🎯 المستهدف":(h.r==="وقف"?"⛔ الوقف":(h.r||"—"));
+    const plv=(h.pl!=null)?h.pl:((h.sp-h.b)*(h.q||0));
+    return '<tr><td class="num">'+dstr(h.d)+'</td><td><b>'+(h.n||(BYSYM[h.s]?BYSYM[h.s].n:h.s))+'</b> <span class="sect-tag">'+h.s+'</span></td><td class="num">'+NF(h.b)+'</td><td class="num">'+dstr(h.dd)+'</td><td class="num">'+NF(h.sp)+'</td><td>'+why+'</td><td class="num">'+days+' يوم</td><td class="'+(plv>=0?"up":"down")+'"><b>'+(plv>=0?"+":"")+NF(plv)+' ج.م</b></td><td class="'+(h.ret>=0?"up":"down")+'"><b>'+(h.ret>=0?"+":"")+h.ret.toFixed(1)+'%</b></td></tr>';
   }).join("");
   const unseen=w.alerts.filter(function(a){return !a.seen}).length;
   const arows=unseen?w.alerts.filter(function(a){return !a.seen}).slice(-8).reverse().map(function(a){
@@ -2989,23 +2993,26 @@ function renderPaper(){
   }).join(""):"";
   let h='<div class="card"><h3>🤖 المتداول الوهمي — محفظة تدريب بعملة وهمية تختبر التوصيات بصدق'+(unseen?' <span class="badge" style="background:rgba(255,180,84,.16);color:var(--amber)">🔔 '+unseen+' تنبيه جديد</span>':"")+'</h3>'
    +'<p class="small muted" style="line-height:1.8;margin-bottom:10px">روبوت تجريبي بيبدأ بـ<b>١٠٠٬٠٠٠ ج.م وهمية</b> (مش فلوس حقيقية نهائيًا): كل يوم بياخد <b>أقوى توصيات الماسح الذكي</b> ويشتري منها (٥ مراكز حد أقصى — كل مركز بحد أقصى ٢٠٪ من المحفظة)، وبيبيع تلقائيًا لما السعر يوصل <b>المستهدف الفني 🎯</b> أو <b>الوقف ⛔</b>. الدورة بتشتغل لما تفتح التطبيق أو يعمل فحص جديد — والنتيجة تحت هي ميزان حقيقي لجودة التوصيات: المحفظة وصلت لفين؟</p>'
+   +'<div class="warn-box" style="margin-top:8px;line-height:1.9">ℹ️ <b>منين بيشتري وإمتى؟</b> البوت بياخد أقوى توصيات الماسح الذكي بتاعة التطبيق نفسه وقت ما الفحص يشتغل (أول ما تفتح التطبيق أو تعمل تحديث) — يعني بعد الافتتاح وبأسعار وقت الفحص. نفس المحرك بتاع تقرير الـ١١ صباحًا على تليجرام، فقد يتطابقوا وقد يختلفوا سهم أو اتنين حسب تغير الأسعار. وكل حاجة بتشتغل لوحدها من غير زراير: الشراء والبيع والتسجيل بيحصلوا تلقائي كل ما التطبيق يتفتح أو يتعمل فحص.</div>'
    +'<div class="metrics">'
    +'<div class="metric"><div class="lbl">قيمة المحفظة الوهمية</div><div class="val">'+NF(val)+' <span class="small muted">ج.م</span></div></div>'
    +'<div class="metric"><div class="lbl">إجمالي الربح / الخسارة</div><div class="val" style="color:'+colPl+'">'+(pl>=0?"+":"")+NF(pl)+' ('+(plp>=0?"+":"")+plp.toFixed(1)+'%)</div></div>'
    +'<div class="metric"><div class="lbl">الرصيد النقدي المتاح</div><div class="val">'+NF(w.cash)+'</div></div>'
    +'<div class="metric"><div class="lbl">مراكز مفتوحة / صفقات مقفولة</div><div class="val">'+w.pos.length+' / '+n+'</div></div>'
-   +'<div class="metric"><div class="lbl">نسبة الصفقات الرابحة</div><div class="val" style="color:'+colWr+'">'+(wr==null?"—":wr+"%")+'</div></div>'
+   +'<div class="metric"><div class="lbl">نسبة النجاح من أول يوم</div><div class="val" style="color:'+colWr+'">'+(wr==null?"—":wr+"% ("+wins+" من "+n+")")+'</div></div>'
    +'<div class="metric"><div class="lbl">متوسط عائد الصفقة</div><div class="val" style="color:'+colAvg+'">'+(avg==null?"—":(avg>=0?"+":"")+avg.toFixed(1)+"%")+'</div></div>'
    +'<div class="metric"><div class="lbl">أفضل صفقة</div><div class="val" style="color:var(--green)">'+(best==null?"—":(best>=0?"+":"")+best.toFixed(1)+"%")+'</div></div>'
    +'<div class="metric"><div class="lbl">أسوأ صفقة</div><div class="val" style="color:var(--red)">'+(worst==null?"—":worst.toFixed(1)+"%")+'</div></div>'
    +'<div class="metric"><div class="lbl">عائد متوسط السوق (مرجع)</div><div class="val" style="color:'+colB+'">'+(bRet>=0?"+":"")+bRet.toFixed(1)+'%</div></div>'
    +'<div class="metric"><div class="lbl">ألفا — تفوق البوت على السوق</div><div class="val" style="color:'+colA+'">'+(alpha>=0?"+":"")+alpha.toFixed(1)+'%</div></div>'
+   +'<div class="metric"><div class="lbl">الربح المحقق من الصفقات المقفولة</div><div class="val" style="color:'+(realized>=0?"var(--green)":"var(--red)")+'">'+(realized>=0?"+":"")+NF(realized)+' <span class="small muted">ج.م</span></div></div>'
+   +'<div class="metric"><div class="lbl">صفقات رابحة / خاسرة</div><div class="val">'+wins+' / '+losses+'</div></div>'
    +'</div>'
    +'<div style="margin:10px 0">'+(spark||'<div class="small muted">منحنى المحفظة هيرسم هنا أول ما تتجمع أيام كفاية — نقطة كل يوم.</div>')+'</div>'
    +'<h3 class="small" style="margin:12px 0 6px">📂 المراكز المفتوحة الآن</h3>'
-   +(w.pos.length?'<div class="scroll-x"><table><thead><tr><th>السهم</th><th>الكمية</th><th>سعر الشراء</th><th>المستهدف 🎯</th><th>الوقف ⛔</th><th>السعر الآن</th><th>العائد العائم</th><th>التقدم للهدف</th></tr></thead><tbody>'+prows+'</tbody></table></div>':'<div class="small muted">مفيش مراكز مفتوحة — المتداول هيشتري أقوى التوصيات أول ما يعمل فحص جديد.</div>')
-   +'<h3 class="small" style="margin:12px 0 6px">📜 آخر الصفقات المقفولة</h3>'
-   +(n?'<div class="scroll-x"><table><thead><tr><th>السهم</th><th>سعر الشراء</th><th>سعر البيع</th><th>العائد</th><th>سبب الإغلاق</th><th>المدة</th></tr></thead><tbody>'+crows+'</tbody></table></div>':'<div class="small muted">لسه مفيش صفقات مقفولة — أول ما سعر مركز يلمس مستهدفه أو وقفه هيتسجل هنا فورًا.</div>')
+   +(w.pos.length?'<div class="scroll-x"><table><thead><tr><th>السهم</th><th>تاريخ الشراء</th><th>الكمية</th><th>التوصية وقتها</th><th>سعر الشراء</th><th>المستهدف 🎯</th><th>الوقف ⛔</th><th>السعر الآن</th><th>العائد العائم</th><th>التقدم للهدف</th></tr></thead><tbody>'+prows+'</tbody></table></div>':'<div class="small muted">مفيش مراكز مفتوحة — المتداول هيشتري أقوى التوصيات أول ما يعمل فحص جديد.</div>')
+   +'<h3 class="small" style="margin:12px 0 6px">📜 دفتر الصفقات الكامل — من أول يوم (كل صفقة بتاريخها وربحها)</h3>'
+   +(n?'<div class="scroll-x"><table><thead><tr><th>تاريخ الشراء</th><th>السهم</th><th>سعر الشراء</th><th>تاريخ البيع</th><th>سعر البيع</th><th>السبب</th><th>المدة</th><th>الربح / الخسارة</th><th>العائد</th></tr></thead><tbody>'+crows+'</tbody></table></div>':'<div class="small muted">لسه مفيش صفقات مقفولة — أول ما سعر مركز يلمس مستهدفه أو وقفه هيتسجل هنا فورًا.</div>')
    +(unseen?'<h3 class="small" style="margin:12px 0 6px">🔔 تنبيهات صفقات جديدة ('+unseen+')</h3>'+arows:"")
    +'<div class="row" style="margin-top:12px"><button class="btn mini primary" onclick="paperRun()">▶️ شغّل دورة المتداول الآن</button><button class="btn mini" onclick="paperBell()">🔔 تنبيهات المتصفح</button><button class="btn mini danger" onclick="paperReset()">♻️ تصفير المحفظة والبدء من جديد</button></div>'
    +'<div class="small muted" style="margin-top:8px;line-height:1.7">⚖️ القواعد: شراء مرة كل يوم من أقوى توصيات الفحص · ٥ مراكز حد أقصى · ٢٠٪ من المحفظة للمركز الواحد · بيع تلقائي عند المستهدف أو الوقف الفني. أداة تقييم للتوصيات ومش محاكاة دقيقة للعمولات والسيولة.</div>'
@@ -4431,7 +4438,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.79";
+  var APP_VER="3.80";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
