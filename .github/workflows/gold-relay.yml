@@ -17,22 +17,46 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: جلب تاريخ الذهب وعوامله من ياهو
+      - name: جلب تاريخ الذهب وعوامله من ياهو (كوكيز + كرامب)
         shell: bash
         run: |
           set -euo pipefail
+          python3 - <<'PY_EOF'
+          import urllib.request, urllib.parse, http.cookiejar, json, time
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-          SYM="XAUUSD=X,USDEGP=X,DX-Y.NYB,%5ETNX,%5EVIX,GLD"
-          for HOST in query1 query2; do
-            CODE=$(curl -sS --max-time 40 -A "$UA" -H "Accept: application/json" -o gold.json -w "%{http_code}" "https://$HOST.finance.yahoo.com/v8/finance/spark?symbols=$SYM&range=1y&interval=1d" || echo 000)
-            if [ "$CODE" = "200" ] && jq -e '.["XAUUSD=X"].close' gold.json >/dev/null 2>&1; then
-              echo "✅ تاريخ الذهب وعوامله اتسحب من $HOST ($(wc -c < gold.json) بايت)"
-              exit 0
-            fi
-            echo "⚠️ $HOST: HTTP $CODE — محاولة تانية"
-          done
-          echo "❌ ياهو رفض الجلسة دي — هنحاول تاني الساعة الجاية"
-          exit 1
+          cj=http.cookiejar.CookieJar()
+          op=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+          op.addheaders=[("User-Agent",UA)]
+          try:
+            op.open("https://fc.yahoo.com", timeout=20)
+          except Exception as e:
+            print("كوكيز:", e)
+          crumb=""
+          try:
+            crumb=op.open("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=20).read().decode().strip()
+          except Exception as e:
+            print("كرامب:", e)
+          print("كرامب:", repr(crumb))
+          out={}
+          for s in ["XAUUSD=X","USDEGP=X","DX-Y.NYB","^TNX","^VIX","GLD"]:
+            url="https://query1.finance.yahoo.com/v8/finance/chart/"+urllib.parse.quote(s)+"?range=1y&interval=1d"
+            if crumb: url+="&crumb="+urllib.parse.quote(crumb)
+            for attempt in range(3):
+              try:
+                j=json.loads(op.open(url, timeout=40).read().decode())
+                r=j["chart"]["result"][0]
+                out[s]={"timestamp":r["timestamp"],"close":r["indicators"]["quote"][0]["close"]}
+                print("OK", s, len(out[s]["close"]), "شعلة")
+                break
+              except Exception as e:
+                print(s, "محاولة", attempt, "فشلت:", e)
+                time.sleep(3)
+          if "XAUUSD=X" not in out:
+            print("NO XAUUSD")
+            raise SystemExit(1)
+          json.dump(out, open("gold.json","w"))
+          print("رموز جات:", list(out.keys()))
+          PY_EOF
       - name: نشر gold.json على فرع gold
         shell: bash
         env:
