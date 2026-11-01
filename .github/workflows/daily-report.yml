@@ -15,7 +15,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 concurrency:
   group: daily-report
