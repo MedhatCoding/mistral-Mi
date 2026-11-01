@@ -184,6 +184,12 @@ jobs:
           const baseBuys=liq.filter(function(r){return r.sh&&r.v0.sc>=2}).sort(function(a,b){return b.v0.sc-a.v0.sc}).slice(0,3);
           const buys=liq.filter(function(r){return r.sh&&r.v.sc>=2}).sort(function(a,b){return b.v.sc-a.v.sc}).slice(0,3);
           const warns=liq.filter(function(r){return r.sh&&r.v.sc<=-1.5}).sort(function(a,b){return a.v.sc-b.v.sc}).slice(0,2);
+          /* حفظ توصيات التقرير لعرضها في التطبيق (كارت توصيات تقرير اليوم) */
+          try{
+            const mapR=function(r,v,price,chg){return {s:r.sym,n:r.name,pr:v.rec,st:v.stars,sc:Math.round(v.sc*100)/100,p:price,chg:chg,em:v.em,stop:v.stop,t1:v.t1,risk:v.risk,rs:(v.rs||[]).slice(0,3)}};
+            fs.writeFileSync('recs.json',JSON.stringify({t:Date.now(),base:baseBuys.map(function(r){return mapR(r,r.v0,r.p0,r.c0)}),rev:buys.map(function(r){return mapR(r,r.v,r.price,r.chg)}),warns:warns.map(function(r){return mapR(r,r.v,r.price,r.chg)})}));
+            console.log('recs.json جاهزة للنشر');
+          }catch(e){console.log('recs: '+e.message)}
           function stockLines(r,v,price,chg){
             const pos=(v.rs||[]).filter(function(x){return x[0]==='✅'});
             const top=(pos.length?pos:(v.rs||[])).slice(0,2);
@@ -451,6 +457,25 @@ jobs:
           set -euo pipefail
           echo "🧠 شغّل المحرك على $(ls -1 hist.json >/dev/null 2>&1 && echo 'تاريخ كامل' || echo 'بدون تاريخ')..."
           node report.js
+
+      - name: نشر توصيات التقرير على فرع recs (عرضها في التطبيق)
+        if: env.SKIP == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [ -f recs.json ] || { echo "مفيش recs.json — مفيش نشر"; exit 0; }
+          mkdir -p /tmp/pub
+          cp recs.json /tmp/pub/
+          cd /tmp/pub
+          git init -q -b recs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "chore: توصيات التقرير اليومي [skip ci]"
+          git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" recs
+          echo "✅ recs.json اتنشرت على فرع recs"
 
       - name: 🚨 إشعار فشل التقرير على تليجرام
         if: failure()
