@@ -119,11 +119,8 @@ jobs:
           /* 4) إشعار تليجرام لو فيه حركة */
           const TOK=(process.env.TG_BOT_TOKEN||'').trim(),CHAT=(process.env.TG_CHAT_ID||'').trim();
           if(acted.length&&TOK&&CHAT){
-            fetch('https://api.telegram.org/bot'+TOK+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:CHAT,text:'🛰️ المتداول الوهمي (السيرفر — شغال حتى لو التطبيق مقفول):
-'+acted.join('
-')+'
-
-قيمة المحفظة: '+val.toFixed(0)+' ج.م'})})
+            var NL=String.fromCharCode(10);
+            fetch('https://api.telegram.org/bot'+TOK+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:CHAT,text:'🛰️ المتداول الوهمي (السيرفر — شغال حتى لو التطبيق مقفول):'+NL+acted.join(NL)+NL+NL+'قيمة المحفظة: '+val.toFixed(0)+' ج.م'})})
               .then(function(r){return r.json()})
               .then(function(j){console.log(j.ok?'✅ اتبعت على تليجرام':'⚠️ تليجرام: '+(j.description||'خطأ'))})
               .catch(function(e){console.log('⚠️ '+e.message)});
