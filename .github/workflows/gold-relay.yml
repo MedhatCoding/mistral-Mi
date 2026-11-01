@@ -1,4 +1,4 @@
-# 🥇 Gold Relay — تاريخ الذهب وعوامله من سيرفر GitHub (المتصفح في مصر محجوب من ياهو أحيانًا)
+# 🥇 Gold Relay — تاريخ الذهب وعوامله من سيرفر GitHub (ياهو بقى بيطلب كوكيز + كرامب)
 name: 🥇 Gold Relay — تاريخ الذهب وعوامله
 on:
   schedule:
@@ -17,52 +17,45 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
-      - name: جلب تاريخ الذهب وعوامله من ياهو (كوكيز + كرامب)
+      - name: جلب تاريخ الذهب وعوامله من ياهو (كوكيز + كرامب) مع بديل stooq
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY_EOF'
-          import urllib.request, urllib.parse, http.cookiejar, json, time
           UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-          cj=http.cookiejar.CookieJar()
-          op=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-          op.addheaders=[("User-Agent",UA)]
-          try:
-            op.open("https://fc.yahoo.com", timeout=20)
-          except Exception as e:
-            print("كوكيز:", e)
-          crumb=""
-          try:
-            crumb=op.open("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=20).read().decode().strip()
-          except Exception as e:
-            print("كرامب:", e)
-          print("كرامب:", repr(crumb))
-          out={}
-          for s in ["XAUUSD=X","USDEGP=X","DX-Y.NYB","^TNX","^VIX","GLD"]:
-            url="https://query1.finance.yahoo.com/v8/finance/chart/"+urllib.parse.quote(s)+"?range=1y&interval=1d"
-            if crumb: url+="&crumb="+urllib.parse.quote(crumb)
-            for attempt in range(3):
-              try:
-                j=json.loads(op.open(url, timeout=40).read().decode())
-                r=j["chart"]["result"][0]
-                out[s]={"timestamp":r["timestamp"],"close":r["indicators"]["quote"][0]["close"]}
-                print("OK", s, len(out[s]["close"]), "شعلة")
-                break
-              except Exception as e:
-                print(s, "محاولة", attempt, "فشلت:", e)
-                time.sleep(3)
-          if "XAUUSD=X" not in out:
-            print("NO XAUUSD")
-            raise SystemExit(1)
-          json.dump(out, open("gold.json","w"))
-          print("رموز جات:", list(out.keys()))
-          PY_EOF
+          SYM="XAUUSD=X,USDEGP=X,DX-Y.NYB,%5ETNX,%5EVIX,GLD"
+          JAR="$RUNNER_TEMP/cj.txt"
+          ok=""
+          for HOST in query1 query2; do
+            rm -f "$JAR"
+            curl -sS -L -c "$JAR" -A "$UA" --max-time 25 "https://fc.yahoo.com" -o /dev/null || true
+            curl -sS -L -c "$JAR" -b "$JAR" -A "$UA" --max-time 25 "https://finance.yahoo.com" -o /dev/null || true
+            CRUMB=$(curl -sS -b "$JAR" -A "$UA" --max-time 20 "https://$HOST.finance.yahoo.com/v1/test/getcrumb" || true)
+            echo "HINT $HOST: crumb ${#CRUMB} chars"
+            [ -z "$CRUMB" ] && continue
+            ENC=$(printf %s "$CRUMB" | jq -sRr @uri)
+            CODE=$(curl -sS -b "$JAR" -A "$UA" -H "Accept: application/json" --max-time 45 -o gold.json -w "%{http_code}" "https://$HOST.finance.yahoo.com/v8/finance/spark?symbols=$SYM&range=1y&interval=1d&crumb=$ENC" || echo 000)
+            if [ "$CODE" = "200" ] && jq -e '."XAUUSD=X".close' gold.json >/dev/null 2>&1; then
+              echo "OK pulled from $HOST ($(wc -c < gold.json) bytes)"
+              ok=1; break
+            fi
+            echo "WARN $HOST: HTTP $CODE"
+          done
+          if [ -z "$ok" ]; then
+            echo "WARN yahoo refused - trying stooq fallback (gold only)"
+            curl -fsSL --retry 2 --max-time 40 -A "$UA" "https://stooq.com/q/d/l/?s=xauusd&i=d" -o xau.csv || { echo "ERR stooq failed too"; exit 1; }
+            if ! head -1 xau.csv | grep -q "Date,Open,High,Low,Close"; then echo "ERR stooq format unexpected"; exit 1; fi
+            tail -n +2 xau.csv | awk -F, 'NF>=5 && $5+0>0 {printf "%s%s", (n++?",":""), $5}' > closes.txt
+            [ -s closes.txt ] || { echo "ERR no data"; exit 1; }
+            echo "{\"XAUUSD=X\":{\"close\":[$(cat closes.txt)]}}" > gold.json
+            echo "OK gold.json built from stooq ($(wc -c < gold.json) bytes)"
+          fi
       - name: نشر gold.json على فرع gold
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          [ -f gold.json ] || { echo "no gold.json"; exit 0; }
           mkdir -p /tmp/pub
           cp gold.json /tmp/pub/
           cd /tmp/pub
@@ -70,6 +63,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -qm "chore: 🥇 تحديث تاريخ الذهب وعوامله [skip ci]"
+          git commit -qm "chore: gold update [skip ci]"
           git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" gold
-          echo "✅ gold.json اتنشرت على فرع gold"
+          echo "OK gold.json published"
