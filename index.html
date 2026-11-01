@@ -492,6 +492,8 @@
       <p class="small muted" style="line-height:1.8">التوصيات هنا للأسهم <b>المتوافقة مع الشريعة ☪️ فقط</b> — مفيش أي فرص تانية خالص: يفحص المحرك ٤٧ سهمًا متوافقًا مع الشريعة (مكونات مؤشر EGX33 الرسمية + الأسهم المتوافقة خارج المؤشر) ويقيّم كل سهم على 6 محاور (الاتجاه · الزخم · التقلب · الموقع من المدى · بولنجر) ثم يرتّب أقوى فرص الشراء وأهم التحذيرات — في طلب واحد وسريع. ولو مش عايز أسهم أصلاً، تحت في قسم «صناديق متوافقة مع الشريعة» فرص حلال جاهزة للتتبع.</p>
       <div class="bar hide" id="scan-bar-wrap" style="margin:10px 0"><div id="scan-bar" style="width:0%"></div></div>
       <div class="grid2" id="picks-grid"></div>
+      <div id="egx33-card" style="margin-top:14px"></div>
+      <div id="gold-card" style="margin-top:14px"></div>
       <div id="picks-ai" style="margin-top:12px"></div>
       <div id="engine-bt" style="margin-top:12px"></div>
       <div id="reclog-card" style="margin-top:12px"></div>
@@ -4274,16 +4276,155 @@ init();
   if(typeof window.openStock!=="function")return;
   var egxOpenOrig=window.openStock;
   window.openStock=function(){
-    var r=egxOpenOrig.apply(this,arguments);
-    Promise.resolve(r).then(egxVolInject).catch(function(){});
-    return r
-  };
+    var r=egxOpenOrig.apply(<script>/* EGX33-GOLD-CARDS: توصية مؤشر EGX33 + توصيات الذهب جوه التطبيق — نفس منطق التقرير اليومي بالظبط */
+(function(){
+"use strict";
+var APP_GOLD_TS=0;
+/* ── ☪️ كارت توصية مؤشر EGX33 (اتساع أسهم الشريعة) ── */
+function egx33Render(){
+  var box=document.getElementById("egx33-card");if(!box)return;
+  try{
+    var ups=0,downs=0,flats=0,ns=0,sumChg=0,sumSc=0,top=null,bot=null;
+    SHARIA.forEach(function(s){
+      var d=WATCH_CACHE[s];if(!d||!d.verdict||!(d.price>0))return;
+      var chg=(typeof d.chg==="number")?d.chg:0;
+      ns++;sumChg+=chg;sumSc+=((d.verdict.sc!=null)?d.verdict.sc:0);
+      if(chg>0)ups++;else if(chg<0)downs++;else flats++;
+      if(!top||chg>top.chg)top={s:s,chg:chg};
+      if(!bot||chg<bot.chg)bot={s:s,chg:chg};
+    });
+    if(!ns){box.innerHTML='<div class="card"><h3>☪️ توصية مؤشر EGX33 — أسهم الشريعة</h3><p class="small muted"><span class="spin"></span> بيجمع بيانات أسهم الشريعة... أول ما توصل هتظهر التوصية هنا.</p></div>';return;}
+    var breadth=ups/ns,avg=sumChg/ns,avgSc=sumSc/ns;
+    var em,rec,cls;
+    if(breadth>=0.6&&avgSc>=0.5){em="🚀";rec="اتجاه إيجابي على المؤشر — شراء تدريجي عند التصحيحات";cls="rec-buy";}
+    else if(breadth<=0.4&&avgSc<=-0.5){em="📉";rec="اتجاه سلبي على المؤشر — جني أرباح جزئي وانتظار";cls="rec-sell";}
+    else{em="⚖️";rec="حياد على المؤشر — انتظار إشارات أوضح قبل أي مركز جديد";cls="rec-hold";}
+    var nm=function(s){return (BYSYM&&BYSYM[s]&&BYSYM[s].n)?BYSYM[s].n:s;};
+    var sgn=function(x){return (x>=0?"+":"")+x.toFixed(2)+"%";};
+    var h='<div class="card"><h3>☪️ توصية مؤشر EGX33 — من قراءة '+ns+' سهم شريعة</h3>';
+    h+='<div class="row" style="gap:10px;margin:8px 0"><span class="rec-badge '+cls+'" style="font-size:14px;padding:7px 12px">'+em+' '+rec+'</span><span class="small muted">اتساع السوق: '+Math.round(breadth*100)+'% صاعد</span></div>';
+    h+='<ul class="reasons small">';
+    h+='<li>📊 العرض: <b>'+ups+'</b> صاعد · <b>'+downs+'</b> هابط · <b>'+flats+'</b> ثابت (من '+ns+' سهم شريعة)</li>';
+    h+='<li>📈 متوسط التغير <b>'+sgn(avg)+'</b> · متوسط قوة الإشارة <b>'+sgn(avgSc)+'</b></li>';
+    if(top&&bot&&top.s!==bot.s)h+='<li>⬆️ الأقوى النهاردة: <b>'+nm(top.s)+'</b> '+sgn(top.chg)+' · ⬇️ الأضعف: <b>'+nm(bot.s)+'</b> '+sgn(bot.chg)+'</li>';
+    h+='<li>ℹ️ التوصية دي اتحسبت من مكوّنات مؤشر EGX33 والأسهم المتوافقة — زي التقرير اليومي بالظبط.</li>';
+    h+='</ul></div>';
+    box.innerHTML=h;
+  }catch(e){try{box.innerHTML="";}catch(x){}}
+}
+window.egx33Render=egx33Render;
+/* ── 🥇 كارت توصيات الذهب — محرك فني + كل العوامل + أسعار الجرام ── */
+async function goldRender(manual){
+  var box=document.getElementById("gold-card");if(!box)return;
+  box.innerHTML='<div class="card"><h3>🥇 توصيات الذهب — الأونصة عالميًا</h3><p class="small muted"><span class="spin"></span> بيجيب تاريخ الذهب وعوامله (الدولار · عائد السندات · VIX · GLD)...</p></div>';
+  try{
+    var SYM=["XAUUSD=X","USDEGP=X","DX-Y.NYB","%5ETNX","%5EVIX","GLD"];
+    var q=SYM.map(encodeURIComponent).join(",");
+    var j=null;
+    for(var hi=0;hi<2&&!j;hi++){
+      var host=(hi===0)?"query1":"query2";
+      try{var t=await fetchJSON("https://"+host+".finance.yahoo.com/v8/finance/spark?symbols="+q+"&range=1y&interval=1d");if(t&&t["XAUUSD=X"])j=t;}catch(e){}
+    }
+    var spark=function(k){
+      var s=j&&j[k];if(!s||!Array.isArray(s.close))return null;
+      var cl=s.close.map(function(x){return +x}).filter(function(x){return x>0});
+      if(cl.length<21)return null;
+      return {last:cl[cl.length-1],chg20:(cl[cl.length-1]/cl[cl.length-21]-1)*100};
+    };
+    /* سعر حالي احتياطي */
+    var gNow=0;
+    try{var gn=await fetchJSON("https://api.gold-api.com/price/XAU");if(gn&&+gn.price>0)gNow=+gn.price;}catch(e){}
+    var gArr=[];
+    if(j){
+      var gk=j["XAUUSD=X"];
+      if(gk&&Array.isArray(gk.timestamp)&&Array.isArray(gk.close)){
+        for(var i=0;i<gk.timestamp.length;i++){
+          var c=+gk.close[i];if(!(c>0))continue;
+          var prev=gArr.length?gArr[gArr.length-1].c:c;
+          gArr.push({d:new Date(gk.timestamp[i]*1000).toISOString().slice(0,10),o:prev,h:Math.max(prev,c),l:Math.min(prev,c),c:c,v:0});
+        }
+      }
+    }
+    if(gArr.length>=60){
+      var vg=analyze(gArr);if(!vg)throw new Error("تحليل الذهب فشل");
+      var gHist=gArr[gArr.length-1].c,gPrev=gArr.length>1?gArr[gArr.length-2].c:gHist;
+      var disp=(gNow>0)?gNow:gHist;
+      var gchg=gPrev?((disp-gPrev)/gPrev*100):0;
+      var sgn=function(x){return (x>=0?"+":"")+x.toFixed(2)+"%";};
+      var h='<div class="card"><div class="flex-between"><h3>🥇 توصيات الذهب — الأونصة عالميًا</h3><button class="btn mini" onclick="goldRender(true)">🔄 تحديث</button></div>';
+      h+='<div class="row" style="gap:10px;margin:8px 0"><span class="rec-badge '+vg.cls+'" style="font-size:14px;padding:7px 12px">'+vg.em+' '+vg.rec+'</span><span class="stars">'+"★".repeat(vg.stars)+"☆".repeat(5-vg.stars)+'</span><span class="small muted">ثقة '+vg.conf+'%</span><span class="badge '+(gchg>=0?"b-buy":"b-sell")+'" style="direction:ltr">'+sgn(gchg)+'</span></div>';
+      h+='<ul class="reasons small">';
+      h+='<li>💵 السعر: <b>'+NF(disp,1)+'</b> دولار/أونصة'+((gNow>0&&Math.abs(gNow-gHist)/gHist>0.005)?' (لحظي)':' (آخر إغلاق)')+'</li>';
+      h+='<li>🛑 وقف '+NF(vg.stop,1)+' دولار · 🎯 هدف '+NF(vg.t1,1)+' دولار · 🛡️ مخاطرة '+vg.risk+'</li>';
+      h+='</ul>';
+      /* 🔬 العوامل */
+      var dxy=spark("DX-Y.NYB"),tnx=spark("%5ETNX"),vix=spark("%5EVIX"),gld=spark("GLD"),egp=spark("USDEGP=X"),mom=spark("XAUUSD=X");
+      var facs=[];
+      h+='<h4 class="small" style="margin:12px 0 4px">🔬 العوامل المؤثرة في الذهب (تغير ~20 جلسة)</h4><ul class="reasons small">';
+      if(dxy){h+='<li>💵 مؤشر الدولار DXY ('+sgn(dxy.chg20)+'): '+(dxy.chg20<0?'⬇️ نزول الدولار = دعم قوي للذهب':'⬆️ صعود الدولار = ضغط على الذهب')+'</li>';facs.push(dxy.chg20<0?1:-1);}
+      if(tnx){h+='<li>🏦 عائد سندات أمريكا 10 سن ('+NF(tnx.last,2)+'% · '+sgn(tnx.chg20)+'): '+(tnx.chg20<0?'⬇️ هبوط العائد = دعم للذهب':'⬆️ صعود العائد = ضغط على الذهب')+'</li>';facs.push(tnx.chg20<0?1:-1);}
+      if(vix){h+='<li>😨 مؤشر الخوف VIX ('+sgn(vix.chg20)+'): '+(vix.chg20>0?'⬆️ توتر وطلب ملاذ آمن = دعم للذهب':'⬇️ هدوء وشهية مخاطرة = ضغط خفيف')+'</li>';facs.push(vix.chg20>0?1:-1);}
+      if(gld){h+='<li>📊 تدفقات صناديق الذهب GLD ('+sgn(gld.chg20)+'): '+(gld.chg20>0?'⬆️ تدفق داخل = دعم':'⬇️ تدفق خارج = ضغط')+'</li>';facs.push(gld.chg20>0?1:-1);}
+      if(mom){h+='<li>🌀 زخم الذهب نفسه ('+sgn(mom.chg20)+' آخر شهر)</li>';facs.push(mom.chg20>0?1:-1);}
+      h+='</ul>';
+      if(egp){
+        var g24=disp/31.1035*egp.last;
+        h+='<div class="metrics" style="margin:12px 0">';
+        h+='<div class="metric"><div class="lbl">جرام عيار 24 (تقديري)</div><div class="val">'+NF(g24,0)+' <span class="small muted">ج.م</span></div></div>';
+        h+='<div class="metric"><div class="lbl">جرام عيار 21</div><div class="val">'+NF(g24*21/24,0)+' <span class="small muted">ج.م</span></div></div>';
+        h+='<div class="metric"><div class="lbl">جرام عيار 18</div><div class="val">'+NF(g24*18/24,0)+' <span class="small muted">ج.م</span></div></div>';
+        h+='<div class="metric"><div class="lbl">جنيه الذهب (8 جرام عيار 21)</div><div class="val">'+NF(g24*21/24*8,0)+' <span class="small muted">ج.م</span></div></div>';
+        h+='</div><p class="small muted" style="margin-top:-4px">💵 الدولار/جنيه: '+NF(egp.last,2)+' ('+sgn(egp.chg20)+' خلال ~شهر) — '+(egp.chg20>0?'⬆️ ارتفاع الدولار بيدعم الذهب المحلي':'استقرار نسبي')+'</p>';
+      }
+      if(facs.length){
+        var score=facs.reduce(function(s,x){return s+x},0)/facs.length;
+        var fRec;
+        if(score>=0.4)fRec="إيجابية قوية للذهب 🚀";
+        else if(score>=0.2)fRec="مايلة للإيجاب 📈";
+        else if(score<=-0.4)fRec="سلبية قوية على الذهب 📉";
+        else if(score<=-0.2)fRec="مايلة للسلب ⚠️";
+        else fRec="متعارضة/حياد ⚖️";
+        var techBuy=(vg.rec||"").indexOf("شراء")>-1;
+        var finalDec;
+        if(score>=0.2&&techBuy)finalDec="اتفاق كامل — الفني والعوامل شايلين الذهب فوق: فرصة شراء أقوى 🚀";
+        else if(score>=0.2&&!techBuy)finalDec="العوامل داعمة رغم تحفز المحرك الفني — شراء تدريجي بكميات صغيرة 📈";
+        else if(score<=-0.2&&techBuy)finalDec="تعارض: الفني إيجابي بس العوامل سلبية — كميات صغيرة جدًا ووقف خسارة صارم ⚠️";
+        else if(score<=-0.2&&!techBuy)finalDec="اتفاق على الحذر — انتظار أو تقليل الكمية 📉";
+        else finalDec="قرار متوازن — تدرّج ووقف دايم ⚖️";
+        var colA=score>=0.2?"var(--green)":(score<=-0.2?"var(--red)":"var(--amber)");
+        h+='<div class="ai-box" style="margin-top:10px"><b>⚖️ محصلة العوامل:</b> '+fRec+'<br><b style="color:'+colA+'">🧠 القرار النهائي للذهب:</b> '+finalDec+'</div>';
+      }
+      h+='<p class="small muted" style="margin-top:8px">آخر تحديث: '+new Date().toLocaleString("ar-EG")+' · نفس منطق التقرير اليومي على تليجرام بالظبط · الأسعار بالجنيه تقديرية من الدولار/الجنيه لحظي.</p></div>';
+      box.innerHTML=h;
+      APP_GOLD_TS=Date.now();
+    } else if(gNow>0){
+      var ek=spark("USDEGP=X");
+      var h2='<div class="card"><div class="flex-between"><h3>🥇 توصيات الذهب — السعر الحالي</h3><button class="btn mini" onclick="goldRender(true)">🔄 تحديث</button></div>';
+      h2+='<ul class="reasons small"><li>💵 الأونصة: <b>'+NF(gNow,1)+'</b> دولار (التاريخ اللازم للتحليل الفني والعوامل مش متاح من المصدر حاليًا)</li>';
+      if(ek){var gg=gNow/31.1035*ek.last;h2+='<li>🥄 جرام 24: <b>'+NF(gg,0)+'</b> ج.م · عيار 21: <b>'+NF(gg*21/24,0)+'</b> ج.م · عيار 18: <b>'+NF(gg*18/24,0)+'</b> ج.م</li>';}
+      h2+='</ul></div>';
+      box.innerHTML=h2;
+    } else {
+      box.innerHTML='<div class="card"><div class="flex-between"><h3>🥇 توصيات الذهب</h3><button class="btn mini" onclick="goldRender(true)">🔄 إعادة المحاولة</button></div><p class="small muted">مصادر الذهب مش متاحة دلوقتي — جرّب تحديث بعد شوية.</p></div>';
+    }
+  }catch(e){
+    box.innerHTML='<div class="card"><h3>🥇 توصيات الذهب</h3><p class="small muted">تعذر جلب بيانات الذهب ('+(e&&e.message?e.message:"خطأ")+') — <button class="btn mini" onclick="goldRender(true)">🔄 إعادة المحاولة</button></p></div>';
+  }
+}
+window.goldRender=goldRender;
+/* تشغيل: الذهب مرة عند الفتح + تحديث تلقائي كل 15 دقيقة · المؤشر بيتحدث كل 20 ثانية مع وصول بيانات الأسهم */
+function boot(){
+  egx33Render();
+  setInterval(egx33Render,20000);
+  goldRender(false);
+  setInterval(function(){goldRender(false);},15*60*1000);
+}
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
-
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.78";
+  var APP_VER="3.79";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
