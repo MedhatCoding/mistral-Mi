@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <script>/* REDIRECT-STREAMLIT: الموقع الرسمي الوحيد بقى mistral-mi.streamlit.app — لو حد فتح رابط GitHub Pages يتحول له فورًا، وجوه Streamlit/محلي يكمل عادي */
-(function(){try{if(location.hostname==="medhatcoding.github.io"){location.replace("https://mistral-mi.streamlit.app/");}}catch(e){}})();</script>
+(function(){try{if(location.hostname==="medhatcoding.github.io"){if(location.search.indexOf("pwa")>-1){try{localStorage.setItem("egx_pwa_stay","1")}catch(e2){}}try{if(localStorage.getItem("egx_pwa_stay")==="1")return}catch(e3){}location.replace("https://mistral-mi.streamlit.app/");}}catch(e){}})();</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#0a0f1c" />
@@ -494,11 +494,15 @@
       <div class="grid2" id="picks-grid"></div>
       <div id="egx33-card" style="margin-top:14px"></div>
       <div id="gold-card" style="margin-top:14px"></div>
+      <div id="serverbot-card" style="margin-top:14px"></div>
       <div id="picks-ai" style="margin-top:12px"></div>
-      <div id="engine-bt" style="margin-top:12px"></div>
-      <div id="reclog-card" style="margin-top:12px"></div>
-      <div id="ml-card" style="margin-top:12px"></div>
-      <div id="lgb-card" style="margin-top:12px"></div>
+      <details id="adv-tools" style="margin-top:12px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 14px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:13px">🧪 أدوات متقدمة للمحترفين (بتشتغل أوتوماتيك في الخلفية — مفتوح هنا للفحص بس): شهادة المحرك · سجل التوصيات · محرك ML · LightGBM</summary>
+        <div id="engine-bt" style="margin-top:12px"></div>
+        <div id="reclog-card" style="margin-top:12px"></div>
+        <div id="ml-card" style="margin-top:12px"></div>
+        <div id="lgb-card" style="margin-top:12px"></div>
+      </details>
       <div id="paper-card" style="margin-top:12px"></div>
       <div id="sharia-funds"></div>
     </div>
@@ -4319,7 +4323,7 @@ function egx33Render(){
     h+='<div class="row" style="gap:10px;margin:8px 0"><span class="rec-badge '+cls+'" style="font-size:14px;padding:7px 12px">'+em+' '+rec+'</span><span class="small muted">اتساع السوق: '+Math.round(breadth*100)+'% صاعد</span></div>';
     h+='<ul class="reasons small">';
     h+='<li>📊 العرض: <b>'+ups+'</b> صاعد · <b>'+downs+'</b> هابط · <b>'+flats+'</b> ثابت (من '+ns+' سهم شريعة)</li>';
-    h+='<li>📈 متوسط التغير <b>'+sgn(avg)+'</b> · متوسط قوة الإشارة <b>'+sgn(avgSc)+'</b></li>';
+    h+='<li>📈 متوسط التغير <b>'+sgn(avg)+'</b> · متوسط قوة الإشارة <b>'+(avgSc>=0?"+":"")+avgSc.toFixed(2)+'</b> (درجات المحرك)</li>';
     if(top&&bot&&top.s!==bot.s)h+='<li>⬆️ الأقوى النهاردة: <b>'+nm(top.s)+'</b> '+sgn(top.chg)+' · ⬇️ الأضعف: <b>'+nm(bot.s)+'</b> '+sgn(bot.chg)+'</li>';
     h+='<li>ℹ️ التوصية دي اتحسبت من مكوّنات مؤشر EGX33 والأسهم المتوافقة — زي التقرير اليومي بالظبط.</li>';
     h+='</ul></div>';
@@ -4335,6 +4339,7 @@ async function goldRender(manual){
     var SYM=["XAUUSD=X","USDEGP=X","DX-Y.NYB","%5ETNX","%5EVIX","GLD"];
     var q=SYM.map(encodeURIComponent).join(",");
     var j=null;
+    try{var rj=await fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/gold/gold.json?cb="+Date.now());if(rj&&rj["XAUUSD=X"])j=rj;}catch(e){}
     for(var hi=0;hi<2&&!j;hi++){
       var host=(hi===0)?"query1":"query2";
       try{var t=await fetchJSON("https://"+host+".finance.yahoo.com/v8/finance/spark?symbols="+q+"&range=1y&interval=1d");if(t&&t["XAUUSD=X"])j=t;}catch(e){}
@@ -4427,18 +4432,44 @@ async function goldRender(manual){
 }
 window.goldRender=goldRender;
 /* تشغيل: الذهب مرة عند الفتح + تحديث تلقائي كل 15 دقيقة · المؤشر بيتحدث كل 20 ثانية مع وصول بيانات الأسهم */
+async function serverBotRender(){
+  var box=document.getElementById("serverbot-card");if(!box)return;
+  try{
+    var p=await fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/paper/paper.json?cb="+Date.now());
+    if(!p||typeof p.cash!=="number"){box.innerHTML="";return;}
+    var val=(typeof p.val==="number")?p.val:(p.cash+(p.pos||[]).reduce(function(a,z){return a+z.q*z.b},0));
+    var st=p.start||100000;
+    var pl=val-st,plp=pl/st*100;
+    var hist=p.hist||[];
+    var wins=hist.filter(function(h){return h.ret>0}).length;
+    var wr=hist.length?Math.round(wins/hist.length*100):null;
+    var realized=hist.reduce(function(a,h){return a+((h.pl!=null)?h.pl:((h.sp-h.b)*(h.q||0)))},0);
+    var lastRun=p.t?new Date(p.t).toLocaleString("ar-EG"):"—";
+    box.innerHTML='<div class="card"><h3>🛰️ المتداول الوهمي على السيرفر — بيشتغل تلقائي حتى لو التطبيق مقفول</h3>'
+      +'<div class="metrics">'
+      +'<div class="metric"><div class="lbl">قيمة المحفظة</div><div class="val">'+NF(val)+' <span class="small muted">ج.م</span></div></div>'
+      +'<div class="metric"><div class="lbl">إجمالي الربح / الخسارة</div><div class="val" style="color:'+(pl>=0?"var(--green)":"var(--red")+'">'+(pl>=0?"+":"")+NF(pl)+' ('+(plp>=0?"+":"")+plp.toFixed(1)+'%)</div></div>'
+      +'<div class="metric"><div class="lbl">مراكز / صفقات</div><div class="val">'+(p.pos||[]).length+' / '+hist.length+'</div></div>'
+      +'<div class="metric"><div class="lbl">نسبة النجاح</div><div class="val">'+(wr==null?"—":wr+"%")+'</div></div>'
+      +'<div class="metric"><div class="lbl">الربح المحقق بالجنيه</div><div class="val" style="color:'+(realized>=0?"var(--green)":"var(--red")+'">'+(realized>=0?"+":"")+NF(realized)+'</div></div>'
+      +'</div>'
+      +'<p class="small muted" style="margin-top:8px">🕐 آخر دورة سيرفر: '+lastRun+' · بيع وشراء تلقائي كل ٣٠ دقيقة أثناء الجلسة من أسعار الريليه اللحظية · أي حركة بتوصلك فورًا على تليجرام.</p></div>';
+  }catch(e){try{box.innerHTML="";}catch(z){}}
+}
 function boot(){
   egx33Render();
   setInterval(egx33Render,20000);
   goldRender(false);
   setInterval(function(){goldRender(false);},15*60*1000);
+  serverBotRender();
+  setInterval(function(){serverBotRender();},5*60*1000);
 }
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.80";
+  var APP_VER="3.81";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";

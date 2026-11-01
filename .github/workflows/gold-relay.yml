@@ -1,0 +1,51 @@
+# 🥇 Gold Relay — تاريخ الذهب وعوامله من سيرفر GitHub (المتصفح في مصر محجوب من ياهو أحيانًا)
+name: 🥇 Gold Relay — تاريخ الذهب وعوامله
+on:
+  schedule:
+    - cron: "20 * * * *"   # كل ساعة عند الدقيقة 20 — عشان كارت الذهب في التطبيق يشتغل من مصدر موثوق
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gold-relay
+  cancel-in-progress: true
+
+jobs:
+  gold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: جلب تاريخ الذهب وعوامله من ياهو
+        shell: bash
+        run: |
+          set -euo pipefail
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          SYM="XAUUSD=X,USDEGP=X,DX-Y.NYB,%5ETNX,%5EVIX,GLD"
+          for HOST in query1 query2; do
+            CODE=$(curl -sS --max-time 40 -A "$UA" -H "Accept: application/json" -o gold.json -w "%{http_code}" "https://$HOST.finance.yahoo.com/v8/finance/spark?symbols=$SYM&range=1y&interval=1d" || echo 000)
+            if [ "$CODE" = "200" ] && jq -e '.["XAUUSD=X"].close' gold.json >/dev/null 2>&1; then
+              echo "✅ تاريخ الذهب وعوامله اتسحب من $HOST ($(wc -c < gold.json) بايت)"
+              exit 0
+            fi
+            echo "⚠️ $HOST: HTTP $CODE — محاولة تانية"
+          done
+          echo "❌ ياهو رفض الجلسة دي — هنحاول تاني الساعة الجاية"
+          exit 1
+      - name: نشر gold.json على فرع gold
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pub
+          cp gold.json /tmp/pub/
+          cd /tmp/pub
+          git init -q -b gold
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "chore: 🥇 تحديث تاريخ الذهب وعوامله [skip ci]"
+          git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" gold
+          echo "✅ gold.json اتنشرت على فرع gold"

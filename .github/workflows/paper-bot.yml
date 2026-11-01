@@ -1,0 +1,151 @@
+# 🛰️ المتداول الوهمي على السيرفر — بيع وشراء تلقائي حتى لو التطبيق مقفول
+# الحالة محفوظة على فرع paper (paper.json) والتطبيق بيعرضها في كارت «المتداول على السيرفر»
+name: 🛰️ المتداول الوهمي على السيرفر
+on:
+  schedule:
+    - cron: "*/30 7-12 * * 0-4"   # كل 30 دقيقة أثناء جلسة EGX (10ص-2:30م بتوقيت القاهرة شتاءً وصيفًا)، الأحد-الخميس
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-bot
+  cancel-in-progress: false
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: تنزيل البيانات وحالة المحفظة
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 2 --max-time 30 -o live.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/live/live.json" || echo "⚠️ live.json مش متاحة"
+          curl -fsSL --retry 2 --max-time 60 -o hist.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/hist/hist.json"             || { echo "❌ hist.json مش متاحة — البوت مش هينفع"; exit 1; }
+          curl -fsSL --retry 2 --max-time 30 -o paper.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/paper/paper.json"             || echo '{"cash":100000,"start":100000,"pos":[],"hist":[],"curve":[],"day":""}' > paper.json
+      - name: استخراج محرك التحليل من index.html
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            grep -m1 "^const NF=" index.html
+            grep -m1 "^const lastOf=" index.html
+            grep -m1 "^let SIGW=" index.html
+            grep -E "^function (sma|ema|rsi|macd|boll|atr)\(" index.html
+            awk '/^function analyze\(/{f=1} f{print} f&&/^}/{f=0}' index.html
+          } > engine.js
+          awk '/^const S = \[/{f=1} f{print} f&&/\]\.map\(a=>/{f=0}' index.html > names.js
+          echo 'const NAMES=Object.fromEntries(S.map(x=>[x.t,x.n]));' >> names.js
+          grep -E "^const SHARIA_(IDX|EXTRA) ?=" index.html > sharia.js
+          echo 'const SHARIA=[...SHARIA_IDX,...SHARIA_EXTRA];' >> sharia.js
+          if ! grep -q "function analyze" engine.js; then echo "❌ استخراج المحرك فشل"; exit 1; fi
+          echo "✅ المحرك جاهز"
+      - name: بناء وتشغيل البوت
+        shell: bash
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          cat > bot_body.js <<'BOT_EOF'
+          /* 🛰️ المتداول الوهمي على السيرفر — نفس منطق تطبيق الـPWA بالظبط */
+          const fs=require('fs');
+          function readJSON(p,d){try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){return d}}
+          const live=readJSON('live.json',null);
+          const hist=readJSON('hist.json',null);
+          if(!hist||!hist.stocks){console.log('❌ hist.json مش متاح');process.exit(0)}
+          const w=readJSON('paper.json',null)||{};
+          if(typeof w.cash!=="number"){w.cash=100000;w.start=100000;w.pos=[];w.hist=[];w.curve=[];w.day=""}
+          if(!Array.isArray(w.pos))w.pos=[];if(!Array.isArray(w.hist))w.hist=[];if(!Array.isArray(w.curve))w.curve=[];
+          const Q={};
+          if(live&&Array.isArray(live.quotes))live.quotes.forEach(function(q){if(q&&q.ticker&&q.price!=null)Q[q.ticker]=+q.price});
+          const today=new Date().toISOString().slice(0,10);
+          const acted=[];
+          /* 1) البيع عند الهدف أو الوقف بأسعار لحظية */
+          for(let i=w.pos.length-1;i>=0;i--){
+            const p=w.pos[i];const cur=Q[p.s];
+            if(cur==null||cur<=0)continue;
+            if(cur>=p.t){
+              w.cash+=p.q*cur;
+              w.hist.push({s:p.s,q:p.q,b:p.b,sp:cur,ret:(cur-p.b)/p.b*100,d:p.d,dd:Date.now(),r:"هدف",t:p.t,sl:p.sl,n:p.n||null,pt:p.pt||null,pl:(cur-p.b)*p.q});
+              w.pos.splice(i,1);acted.push("🎯 باع "+p.s+" عند الهدف "+cur.toFixed(2));
+            }else if(cur<=p.sl){
+              w.cash+=p.q*cur;
+              w.hist.push({s:p.s,q:p.q,b:p.b,sp:cur,ret:(cur-p.b)/p.b*100,d:p.d,dd:Date.now(),r:"وقف",t:p.t,sl:p.sl,n:p.n||null,pt:p.pt||null,pl:(cur-p.b)*p.q});
+              w.pos.splice(i,1);acted.push("⛔ باع "+p.s+" عند الوقف "+cur.toFixed(2));
+            }
+          }
+          if(w.hist.length>200)w.hist=w.hist.slice(-200);
+          /* 2) الشراء مرة واحدة كل يوم من أقوى توصيات المحرك على الإغلاقات + سعر اللحظة */
+          if(w.day!==today&&Object.keys(Q).length>10){
+            const cands=[];
+            SHARIA.forEach(function(sym){
+              const raw=hist.stocks[sym]||[];
+              const arr=raw.filter(function(c){return c&&c.c>0}).map(function(c){return {d:(c.d||null),o:(c.o!=null?c.o:c.c),h:(c.h!=null?c.h:c.c),l:(c.l!=null?c.l:c.c),c:c.c,v:(c.v||0)}});
+              if(arr.length<60)return;
+              const v=analyze(arr);if(!v||v.sc<2)return;
+              const price=Q[sym]||arr[arr.length-1].c;
+              cands.push({sym:sym,name:(NAMES[sym]||sym),v:v,price:price,vol:(arr[arr.length-1].v||0)});
+            });
+            const liq=cands.filter(function(r){return r.vol==null||r.price*r.vol>=1000000});
+            liq.sort(function(a,b){return b.v.sc-a.v.sc});
+            const held={};w.pos.forEach(function(p){held[p.s]=1});
+            for(const xx of liq.slice(0,3)){
+              if(w.pos.length>=5)break;
+              if(held[xx.sym])continue;
+              const cur=Q[xx.sym];if(cur==null||cur<=0)continue;
+              const budget=Math.min(w.cash,w.start*0.2);if(budget<1000)break;
+              const q=Math.floor(budget/cur);if(q<1)continue;
+              const gr=(xx.v.t1&&xx.price)?xx.v.t1/xx.price:1.08;
+              const gs=(xx.v.stop&&xx.price)?xx.v.stop/xx.price:0.94;
+              w.cash-=q*cur;
+              w.pos.push({s:xx.sym,q:q,b:cur,t:cur*gr,sl:cur*gs,d:Date.now(),sc:xx.v.sc,n:xx.name,stars:xx.v.stars,pr:xx.v.rec,pt:Date.now()});
+              held[xx.sym]=1;acted.push("📈 اشترى "+xx.sym+" — "+q+" سهم بـ"+cur.toFixed(2)+" (توصية: "+xx.v.rec+")");
+            }
+            w.day=today;
+          }
+          /* 3) قيمة المحفظة + نقطة منحنى يومية */
+          let val=w.cash;
+          w.pos.forEach(function(p){val+=(Q[p.s]||p.b)*p.q});
+          const last=w.curve.length?w.curve[w.curve.length-1]:null;
+          if(!last||last.d!==today)w.curve.push({d:today,v:val});
+          if(w.curve.length>400)w.curve=w.curve.slice(-400);
+          w.val=val;w.t=Date.now();
+          fs.writeFileSync('paper.json',JSON.stringify(w));
+          console.log('🛰️ المحفظة: '+val.toFixed(0)+' ج.م · رصيد '+w.cash.toFixed(0)+' · مراكز '+w.pos.length+' · صفقات مقفولة '+w.hist.length+(acted.length?' · حركة النهاردة: '+acted.join(' | '):' — مفيش حركة جديدة'));
+          /* 4) إشعار تليجرام لو فيه حركة */
+          const TOK=(process.env.TG_BOT_TOKEN||'').trim(),CHAT=(process.env.TG_CHAT_ID||'').trim();
+          if(acted.length&&TOK&&CHAT){
+            fetch('https://api.telegram.org/bot'+TOK+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:CHAT,text:'🛰️ المتداول الوهمي (السيرفر — شغال حتى لو التطبيق مقفول):
+'+acted.join('
+')+'
+
+قيمة المحفظة: '+val.toFixed(0)+' ج.م'})})
+              .then(function(r){return r.json()})
+              .then(function(j){console.log(j.ok?'✅ اتبعت على تليجرام':'⚠️ تليجرام: '+(j.description||'خطأ'))})
+              .catch(function(e){console.log('⚠️ '+e.message)});
+          }
+          BOT_EOF
+          cat engine.js names.js sharia.js bot_body.js > bot.js
+          node bot.js
+      - name: نشر حالة المحفظة على فرع paper
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [ -f paper.json ] || { echo "⚠️ مفيش paper.json — مفيش نشر"; exit 0; }
+          mkdir -p /tmp/pub
+          cp paper.json /tmp/pub/
+          cd /tmp/pub
+          git init -q -b paper
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "chore: 🛰️ حالة المتداول الوهمي على السيرفر [skip ci]"
+          git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" paper
+          echo "✅ paper.json اتنشرت"
