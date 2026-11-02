@@ -1,0 +1,15 @@
+=== 1) yahoo spark direct ===
+http=429 size=19 head=Too Many Requests
+=== 2) crumb flow ===
+crumb_len=18 val=Too Many Requests
+=== 3) stooq csv ===
+http=200 size=796 head=<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"></head><body><noscript>This site requires JavaScript t
+=== 4) gold-api current ===
+http=000 body=
+=== 5) allorigins proxy to yahoo ===
+http=522 size=16 head=error code: 522
+=== 6) coingecko pax-gold ===
+http=200 body={"pax-gold":{"usd":3910.17},"tether-gold":{"usd":3892.52}}
+=== 7) open.er-api XAU ===
+http=200 head={"result":"error","error-type":"unsupported-code"}
+=== DONE 2026-11-02T03:09:08Z ===
