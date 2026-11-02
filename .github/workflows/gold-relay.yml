@@ -1,8 +1,8 @@
-# 🥇 Gold Relay — تاريخ الذهب وعوامله من سيرفر GitHub (ياهو بقى بيطلب كوكيز + كرامب)
+# 🥇 Gold Relay v2 — تاريخ الذهب من CoinGecko (ياهو مقفول 429 على سيرفرات GitHub — تشخيص مؤكد من فرع diag)
 name: 🥇 Gold Relay — تاريخ الذهب وعوامله
 on:
   schedule:
-    - cron: "20 * * * *"   # كل ساعة عند الدقيقة 20 — عشان كارت الذهب في التطبيق يشتغل من مصدر موثوق
+    - cron: "20 * * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -15,40 +15,54 @@ concurrency:
 jobs:
   gold:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
-      - name: جلب تاريخ الذهب وعوامله من ياهو (كوكيز + كرامب) مع بديل stooq
+      - name: بناء تاريخ الذهب من CoinGecko (pax-gold ≈ الأونصة بدقة ~0.3%)
         shell: bash
         run: |
           set -euo pipefail
-          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-          SYM="XAUUSD=X,USDEGP=X,DX-Y.NYB,%5ETNX,%5EVIX,GLD"
-          JAR="$RUNNER_TEMP/cj.txt"
-          ok=""
-          for HOST in query1 query2; do
-            rm -f "$JAR"
-            curl -sS -L -c "$JAR" -A "$UA" --max-time 25 "https://fc.yahoo.com" -o /dev/null || true
-            curl -sS -L -c "$JAR" -b "$JAR" -A "$UA" --max-time 25 "https://finance.yahoo.com" -o /dev/null || true
-            CRUMB=$(curl -sS -b "$JAR" -A "$UA" --max-time 20 "https://$HOST.finance.yahoo.com/v1/test/getcrumb" || true)
-            echo "HINT $HOST: crumb ${#CRUMB} chars"
-            [ -z "$CRUMB" ] && continue
-            ENC=$(printf %s "$CRUMB" | jq -sRr @uri)
-            CODE=$(curl -sS -b "$JAR" -A "$UA" -H "Accept: application/json" --max-time 45 -o gold.json -w "%{http_code}" "https://$HOST.finance.yahoo.com/v8/finance/spark?symbols=$SYM&range=1y&interval=1d&crumb=$ENC" || echo 000)
-            if [ "$CODE" = "200" ] && jq -e '."XAUUSD=X".close' gold.json >/dev/null 2>&1; then
-              echo "OK pulled from $HOST ($(wc -c < gold.json) bytes)"
-              ok=1; break
-            fi
-            echo "WARN $HOST: HTTP $CODE"
-          done
-          if [ -z "$ok" ]; then
-            echo "WARN yahoo refused - trying stooq fallback (gold only)"
-            curl -fsSL --retry 2 --max-time 40 -A "$UA" "https://stooq.com/q/d/l/?s=xauusd&i=d" -o xau.csv || { echo "ERR stooq failed too"; exit 1; }
-            if ! head -1 xau.csv | grep -q "Date,Open,High,Low,Close"; then echo "ERR stooq format unexpected"; exit 1; fi
-            tail -n +2 xau.csv | awk -F, 'NF>=5 && $5+0>0 {printf "%s%s", (n++?",":""), $5}' > closes.txt
-            [ -s closes.txt ] || { echo "ERR no data"; exit 1; }
-            echo "{\"XAUUSD=X\":{\"close\":[$(cat closes.txt)]}}" > gold.json
-            echo "OK gold.json built from stooq ($(wc -c < gold.json) bytes)"
+          OUT=gold.json
+          EGP=""
+          # سعر الدولار/جنيه من نفس المصدر (pax-gold بالدولار والجنيه) — fallback: open.er-api
+          SP=$(curl -fsS --retry 2 --max-time 25 "https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd,egp" || echo "")
+          if [ -n "$SP" ]; then
+            EGP=$(echo "$SP" | jq -r '."pax-gold".egp / ."pax-gold".usd' 2>/dev/null || echo "")
           fi
+          if [ -z "$EGP" ] || [ "$EGP" = "null" ]; then
+            EGP=$(curl -fsS --retry 2 --max-time 20 "https://open.er-api.com/v6/latest/USD" | jq -r '.rates.EGP' || echo "")
+          fi
+          echo "INFO USD/EGP = $EGP"
+          if [ -z "$EGP" ] || [ "$EGP" = "null" ]; then
+            echo "ERR مفيش سعر دولار/جنيه — مش هنكمل"
+            exit 1
+          fi
+
+          # الطريق الأول: market_chart كامل في استدعاء واحد
+          if curl -fsS --retry 2 --max-time 30 "https://api.coingecko.com/api/v3/coins/pax-gold/market_chart?vs_currency=usd&days=365&interval=daily" -o /tmp/mc.json 2>/dev/null \
+             && jq -e '.prices | length > 100' /tmp/mc.json >/dev/null 2>&1; then
+            jq --arg egp "$EGP" '{ "XAUUSD=X": { close: (.prices | map(.[1])) }, "USDEGP=X": { close: [(($egp|tonumber)*1.0, ($egp|tonumber))] } }' /tmp/mc.json > "$OUT"
+            echo "OK market_chart: $(jq '."XAUUSD=X".close | length' "$OUT") نقطة سعر"
+          else
+            # الطريق التاني: تاريخ يوم بيوم (60 يوم)
+            echo "WARN market_chart مرفوض — بنسحب يوم بيوم"
+            : > /tmp/closes.txt
+            START=$(date -u -d "61 days ago" +%s)
+            for i in $(seq 0 60); do
+              D=$(date -u -d "@$((START + i*86400))" +%d-%m-%Y)
+              P=$(curl -fsS --retry 1 --max-time 15 "https://api.coingecko.com/api/v3/coins/pax-gold/history?date=$D&localization=false" 2>/dev/null | jq -r '.market_data.current_price.usd // empty' 2>/dev/null) || true
+              if [ -n "$P" ]; then echo "$P" >> /tmp/closes.txt; fi
+              sleep 2
+            done
+            if [ -s /tmp/closes.txt ]; then
+              echo "{\"XAUUSD=X\":{\"close\":[$(paste -sd, /tmp/closes.txt)]},\"USDEGP=X\":{\"close\":[$EGP,$EGP]}}" > "$OUT"
+              echo "OK day-by-day: $(wc -l < /tmp/closes.txt) نقطة سعر"
+            else
+              echo "ERR CoinGecko رفض الطريقتين"
+              exit 1
+            fi
+          fi
+          jq -e '."XAUUSD=X".close | length > 10' "$OUT" >/dev/null || { echo "ERR gold.json صيغة غلط"; exit 1; }
+
       - name: نشر gold.json على فرع gold
         shell: bash
         env:
@@ -63,6 +77,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -qm "chore: gold update [skip ci]"
+          git commit -qm "chore: gold update from coingecko [skip ci]"
           git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" gold
           echo "OK gold.json published"
