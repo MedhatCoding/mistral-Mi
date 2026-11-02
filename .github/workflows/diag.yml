@@ -1,0 +1,60 @@
+# 🔬 تشخيص مصادر الذهب — تجربة 7 مصادر من سيرفر GitHub ونشر النتيجة على فرع diag
+name: تشخيص مصادر الذهب
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/diag.yml"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: فحص المصادر واحد واحد
+        shell: bash
+        run: |
+          set +e
+          R="$RUNNER_TEMP/diag.txt"
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          say(){ echo "$1" | tee -a "$R"; }
+          say "=== 1) yahoo spark direct ==="
+          CODE=$(curl -sS --max-time 20 -A "$UA" -o /tmp/y1.json -w "%{http_code}" "https://query1.finance.yahoo.com/v8/finance/spark?symbols=XAUUSD=X&range=5d&interval=1d")
+          say "http=$CODE size=$(wc -c < /tmp/y1.json 2>/dev/null) head=$(head -c 150 /tmp/y1.json 2>/dev/null)"
+          say "=== 2) crumb flow ==="
+          curl -sS -L -c /tmp/cj -A "$UA" --max-time 15 https://fc.yahoo.com -o /dev/null
+          CRUMB=$(curl -sS -b /tmp/cj -A "$UA" --max-time 15 "https://query1.finance.yahoo.com/v1/test/getcrumb")
+          say "crumb_len=${#CRUMB} val=$CRUMB"
+          say "=== 3) stooq csv ==="
+          SC=$(curl -sS --max-time 20 -A "$UA" -o /tmp/x.csv -w "%{http_code}" "https://stooq.com/q/d/l/?s=xauusd&i=d")
+          say "http=$SC size=$(wc -c < /tmp/x.csv 2>/dev/null) head=$(head -c 150 /tmp/x.csv 2>/dev/null)"
+          say "=== 4) gold-api current ==="
+          GC=$(curl -sS --max-time 20 -o /tmp/g.json -w "%{http_code}" "https://api.gold-api.com/price/XAU")
+          say "http=$GC body=$(head -c 200 /tmp/g.json 2>/dev/null)"
+          say "=== 5) allorigins proxy to yahoo ==="
+          AC=$(curl -sS --max-time 30 -o /tmp/a.json -w "%{http_code}" "https://api.allorigins.win/raw?url=https%3A%2F%2Fquery1.finance.yahoo.com%2Fv8%2Ffinance%2Fspark%3Fsymbols%3DXAUUSD%253DX%26range%3D5d%26interval%3D1d")
+          say "http=$AC size=$(wc -c < /tmp/a.json 2>/dev/null) head=$(head -c 150 /tmp/a.json 2>/dev/null)"
+          say "=== 6) coingecko pax-gold ==="
+          KC=$(curl -sS --max-time 20 -o /tmp/k.json -w "%{http_code}" "https://api.coingecko.com/api/v3/simple/price?ids=pax-gold,tether-gold&vs_currencies=usd")
+          say "http=$KC body=$(head -c 250 /tmp/k.json 2>/dev/null)"
+          say "=== 7) open.er-api XAU ==="
+          EC=$(curl -sS --max-time 20 -o /tmp/e.json -w "%{http_code}" "https://open.er-api.com/v6/latest/XAU")
+          say "http=$EC head=$(head -c 250 /tmp/e.json 2>/dev/null)"
+          say "=== DONE $(date -u +%FT%TZ) ==="
+      - name: نشر التشخيص على فرع diag
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p /tmp/pub
+          cp "$RUNNER_TEMP/diag.txt" /tmp/pub/ 2>/dev/null || echo "no diag file" > /tmp/pub/diag.txt
+          cd /tmp/pub
+          git init -q -b diag
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "chore: gold sources diag [skip ci]"
+          git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" diag
