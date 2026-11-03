@@ -31,7 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           EVENT="${{ github.event_name }}"
           TODAY="$(TZ=Africa/Cairo date +%F)"
           NOW_EPOCH="$(TZ=Africa/Cairo date +%s)"
@@ -457,6 +457,7 @@ jobs:
           set -euo pipefail
           echo "🧠 شغّل المحرك على $(ls -1 hist.json >/dev/null 2>&1 && echo 'تاريخ كامل' || echo 'بدون تاريخ')..."
           node report.js
+          echo "SENT=true" >> "$GITHUB_ENV"
 
       - name: نشر توصيات التقرير على فرع recs (عرضها في التطبيق)
         if: env.SKIP == 'false'
@@ -478,7 +479,7 @@ jobs:
           echo "✅ recs.json اتنشرت على فرع recs"
 
       - name: 🚨 إشعار فشل التقرير على تليجرام
-        if: failure()
+        if: failure() && env.SENT != 'true'
         shell: bash
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
@@ -494,7 +495,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           TODAY="$(TZ=Africa/Cairo date +%F)"
           if gh api -X PATCH "repos/${{ github.repository }}/actions/variables/LAST_REPORT_DATE" -f value="$TODAY" 2>/dev/null; then
             echo "✅ علامة اليوم اتحدثت: $TODAY"
@@ -503,3 +504,5 @@ jobs:
           else
             gh api "repos/${{ github.repository }}/actions/variables" -f name=LAST_REPORT_DATE -f value="$TODAY" >/dev/null && echo "✅ اتعملت علامة جديدة: $TODAY"
           fi
+          echo "ℹ️ محاولة تحديث العلامة خلصت (أي غلطة هنا مش بتأثر على التقرير)"
+          true
