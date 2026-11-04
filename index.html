@@ -484,7 +484,7 @@
       <div class="flex-between">
         <h3>🌟 الماسح الذكي — فرص اليوم</h3>
         <div class="row">
-         <span class="pill-auto">⚙️ فحص تلقائي: مرة كل ٢٤ ساعة عند فتح التطبيق</span>
+         <span class="pill-auto">⚙️ فحص تلقائي عند الفتح + مراجعة تلقائية كل ٢٠ دقيقة أثناء الجلسة</span>
           <button class="btn mini" id="btn-scan" title="إعادة الفحص يدويًا">🔄 إعادة الفحص</button>
           <span class="small muted" id="scan-status"></span>
         </div>
@@ -1735,7 +1735,7 @@ function renderPicks(p=PICKS){
   const fresh=p.time&&Date.now()-p.time<24*60*60*1000;
   const ageMin=p.time?Math.round((Date.now()-p.time)/60000):null;
   const stale=p.stale||!fresh;
-  const hdr=`<div class="row small" style="gap:10px;align-items:center;margin-bottom:10px">${stale?'<span class="badge b-sell">⚠️ أسعار قديمة</span>':'<span class="badge b-buy">🟢 أسعار مباشرة</span>'}${p.regime&&p.regime.regime==="bull"?'<span class="badge b-buy" title="EGX30 فوق متوسطه 200 جلسة">🐂 نظام سوق صاعد — المؤشر فوق متوسطه '+Math.abs(p.regime.dist).toFixed(1)+'٪</span>':p.regime?'<span class="badge b-sell" title="EGX30 تحت متوسطه 200 جلسة — التوصيات الضعيفة مستبعدة">🐻 نظام سوق هابط — المؤشر '+Math.abs(p.regime.dist).toFixed(1)+'٪ تحت متوسط ٢٠٠ جلسة · عتبة الشراء مرفوعة</span>':""}<span class="muted">آخر تحديث أسعار: ${p.time?new Date(p.time).toLocaleString("ar-EG"):"—"}${ageMin!=null?" (قبل "+ageMin+" دقيقة)":""}</span>${stale?'<button class="btn mini" onclick="runScan()">🔄 حاول تحديث الأسعار</button>':""}${p.buys&&p.buys.length?'<button class="btn mini" onclick="revalidateAll()" title="التوصيات اتحسبت على إغلاقات — الزر ده يجيب أحدث سعر لكل فرصة ويعيد التحليل ويقارن قبل ما تنفذ">🔁 راجع التوصيات قبل التنفيذ</button>':""}</div>${(p.noliq>0||p.noliq2>0)?'<div class="small muted" style="margin:-4px 0 10px">🚫 استُبعد '+((p.noliq||0)+(p.noliq2||0))+' سهم قليل السيولة (أقل من مليون ج.م تداول يومي متوسط) من فرص الشراء'+(p.noliq2>0?' — منهم '+p.noliq2+' بعد فحص الحجم الحقيقي للفرص النهائية':'')+'.</div>':""}`;
+  const hdr=`<div class="row small" style="gap:10px;align-items:center;margin-bottom:10px">${stale?'<span class="badge b-sell">⚠️ أسعار قديمة</span>':'<span class="badge b-buy">🟢 أسعار مباشرة</span>'}${p.regime&&p.regime.regime==="bull"?'<span class="badge b-buy" title="EGX30 فوق متوسطه 200 جلسة">🐂 نظام سوق صاعد — المؤشر فوق متوسطه '+Math.abs(p.regime.dist).toFixed(1)+'٪</span>':p.regime?'<span class="badge b-sell" title="EGX30 تحت متوسطه 200 جلسة — التوصيات الضعيفة مستبعدة">🐻 نظام سوق هابط — المؤشر '+Math.abs(p.regime.dist).toFixed(1)+'٪ تحت متوسط ٢٠٠ جلسة · عتبة الشراء مرفوعة</span>':""}<span class="muted">آخر تحديث أسعار: ${p.time?new Date(p.time).toLocaleString("ar-EG"):"—"}${ageMin!=null?" (قبل "+ageMin+" دقيقة)":""}</span>${p.buys&&p.buys.length?'<span class="small muted">🔁 بتتراجع تلقائيًا كل ٢٠ دقيقة أثناء الجلسة</span>':""}</div>${(p.noliq>0||p.noliq2>0)?'<div class="small muted" style="margin:-4px 0 10px">🚫 استُبعد '+((p.noliq||0)+(p.noliq2||0))+' سهم قليل السيولة (أقل من مليون ج.م تداول يومي متوسط) من فرص الشراء'+(p.noliq2>0?' — منهم '+p.noliq2+' بعد فحص الحجم الحقيقي للفرص النهائية':'')+'.</div>':""}`;
   $("picks-grid").innerHTML=hdr+`
     <div><h3 class="small" style="margin-bottom:8px">🟢 أقوى فرص الشراء</h3>${p.buys.map(x=>card(x,true)).join("")||'<div class="empty">لا فرص واضحة الآن</div>'}</div>
     <div><h3 class="small" style="margin-bottom:8px">🔴 تحذيرات / فرص بيع</h3>${(p.sells||[]).map(x=>card(x,false)).join("")||'<div class="empty">لا تحذيرات قوية الآن</div>'}</div>`;
@@ -2634,7 +2634,7 @@ function priceAgeTxt(sym){
    هل لسه قايمة؟ ولا السعر طار فوق الهدف؟ ولا كسر الوقف؟ ولا الإشارة ضعفت؟ — القرار النهائي يفضللك دايمًا */
 let REV={};
 async function revalidatePick(sym,quiet){
-  const pick=(PICKS&&PICKS.buys)?PICKS.buys.find(b=>b.sym===sym):null;
+  const PS=store.get("egx_picks3",null);const pick=(PS&&PS.buys)?PS.buys.find(b=>b.sym===sym):null;
   if(!pick){if(!quiet)toast("⚠️ مفيش توصية شراء مفتوحة للسهم ده");return}
   if(!quiet)toast("🔍 جارٍ مراجعة "+sym+" على أحدث البيانات...");
   try{
@@ -2681,11 +2681,11 @@ window.revalidateAll=async function(){
 /* مراجعة أوتوماتيكية لو فتحت التطبيق أثناء الجلسة والتوصيات لسه من إغلاقات أمس — من غير أي زر */
 async function autoRevalidate(){
   if(!inSession())return;
-  if(!PICKS||!PICKS.buys||!PICKS.buys.length)return;
-  const t0=cairoDate();t0.setHours(0,0,0,0);
-  if(PICKS.time>=t0.getTime())return;/* توصيات النهاردة — مفيش لغاية */
+  const P=store.get("egx_picks3",null);
+  if(!P||!P.buys||!P.buys.length)return;
+  if(Date.now()-P.time<15*60*1000)return;/* لسه طازة — مفيش لغاية */
   let n=0;
-  for(const b of PICKS.buys.slice(0,6)){await revalidatePick(b.sym,true);n++}
+  for(const b of P.buys.slice(0,6)){await revalidatePick(b.sym,true);n++}
   if(n)toast("🔁 اتراجعت "+n+" توصية على أسعار الجلسة الجارية قبل التنفيذ — شوف البادجات على الكروت",6000);
 }
 
@@ -3673,9 +3673,11 @@ function init(){
   safe("أخبار السوق",()=>loadNews());
   safe("عرض السوق",()=>renderMarket());
   safe("ملخص المحفظة",renderPortfolioMini);
-  /* التشغيل التلقائي: فحص السوق يشتغل من نفسه إذا كانت النتائج أقدم من 24 ساعة */
-  if(CFG.prefs.auto!==false&&(!PICKS||!PICKS.buys||!PICKS.buys.length||Date.now()-PICKS.time>24*60*60*1000))safe("فحص السوق التلقائي",()=>runScan());
+  /* التشغيل التلقائي: فحص كامل أول ما تفتح التطبيق لو التوصيات أقدم من ساعة — توصيات طازة من غير أي زر */
+  if(CFG.prefs.auto!==false&&(!PICKS||!PICKS.buys||!PICKS.buys.length||Date.now()-PICKS.time>60*60*1000))safe("فحص السوق التلقائي",()=>runScan());
   else{safe("مراجعة قبل التنفيذ",autoRevalidate);}
+  /* 🔁 مراجعة دورية تلقائية كل ٢٠ دقيقة أثناء الجلسة — بديل زر «راجع التوصيات» */
+  if(CFG.prefs.auto!==false)setInterval(function(){safe("مراجعة دورية",autoRevalidate)},20*60*1000);
 }
 /* التكيف مع iframe ستيرمليت: الإطار بارتفاع الشاشة الظاهرة — التمرير جوه التطبيق فشريط التبويبات الثابت يفضل ظاهر دايمًا */
 (function(){
@@ -4518,7 +4520,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.86";
+  var APP_VER="3.87";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
