@@ -176,7 +176,7 @@ jobs:
               }
               price=q.price;prev=base;chg=(q.chg!=null?q.chg:(price-prev)/prev*100);if(q.vol)vol=q.vol;
             }
-            res.push({sym:sym,name:(NAMES[sym]||sym),price:price,prev:prev,chg:chg,vol:vol,p0:p0,c0:c0,v0:v0,v:v,sh:SHARIA.includes(sym)});
+            res.push({sym:sym,name:(NAMES[sym]||sym),price:price,prev:prev,chg:chg,vol:vol,p0:p0,c0:c0,v0:v0,v:v,sh:SHARIA.includes(sym),arr:arr});
           });
           /* فلتر سيولة: آخر حجم × السعر ≥ مليون جنيه (حجم غير معروف = بيتجاوز الفلتر) */
           const liq=res.filter(function(r){return r.vol==null||r.price*r.vol>=1000000});
@@ -184,9 +184,41 @@ jobs:
           const baseBuys=liq.filter(function(r){return r.sh&&r.v0.sc>=2}).sort(function(a,b){return b.v0.sc-a.v0.sc}).slice(0,3);
           const buys=liq.filter(function(r){return r.sh&&r.v.sc>=2}).sort(function(a,b){return b.v.sc-a.v.sc}).slice(0,3);
           const warns=liq.filter(function(r){return r.sh&&r.v.sc<=-1.5}).sort(function(a,b){return a.v.sc-b.v.sc}).slice(0,2);
+
+          /* ⏱️ اختبار تاريخي (v3.85): متى بيوصل الهدف؟ بنرجع بالتاريخ، نعيد إشارة الشراء كل يوم، ونقيس كام جلسة استغرقت لحد الهدف (والوقف ميجيش قبلها) */
+          const btOne=function(r,vv,pp){
+            try{
+              const a=r.arr;if(!a||a.length<100||!vv||vv.sc<1.5)return null;
+              let s=0,w=0,days=[];
+              for(let i=60;i<a.length-31;i++){
+                let vb;try{vb=analyze(a.slice(0,i+1))}catch(e1){continue}
+                if(!vb||(vb.rec||'').indexOf('شراء')<0||vb.sc<1.5)continue;
+                let res2=0;
+                for(let j=i+1;j<=i+30;j++){
+                  if(a[j].l<=vb.stop){res2=-1;break}
+                  if(a[j].h>=vb.t1){res2=j-i;break}
+                }
+                if(res2===0)continue;
+                s++;if(res2>0){w++;days.push(res2)}
+              }
+              if(s>=8&&days.length){
+                const med=days.slice().sort(function(x,y){return x-y})[Math.floor((days.length-1)/2)];
+                return {d:med,p:Math.round(w/s*100),n:s};
+              }
+              /* عينة صغيرة → تقدير بالتذبذب اليومي (ATR14): السهم بيتحرك ~35% من مداه لصالحك في المتوسط */
+              let tr=0,n2=0;
+              for(let k=Math.max(1,a.length-14);k<a.length;k++){tr+=Math.max(a[k].h-a[k].l,Math.abs(a[k].h-a[k-1].c),Math.abs(a[k].l-a[k-1].c));n2++}
+              const atr=n2?tr/n2:0;
+              if(!(atr>0)||!(pp>0))return null;
+              const dd=Math.round(Math.abs(vv.t1-pp)/(0.35*atr));
+              return {d:Math.max(2,Math.min(30,dd)),p:null,n:s};
+            }catch(e){return null}
+          };
+          baseBuys.forEach(function(r){r.btb=btOne(r,r.v0,r.p0)});
+          buys.forEach(function(r){r.bte=btOne(r,r.v,r.price)});
           /* حفظ توصيات التقرير لعرضها في التطبيق (كارت توصيات تقرير اليوم) */
           try{
-            const mapR=function(r,v,price,chg){return {s:r.sym,n:r.name,pr:v.rec,st:v.stars,sc:Math.round(v.sc*100)/100,p:price,chg:chg,em:v.em,stop:v.stop,t1:v.t1,risk:v.risk,rs:(v.rs||[]).slice(0,3)}};
+            const mapR=function(r,v,price,chg){return {s:r.sym,n:r.name,pr:v.rec,st:v.stars,sc:Math.round(v.sc*100)/100,p:price,chg:chg,em:v.em,stop:v.stop,t1:v.t1,risk:v.risk,rs:(v.rs||[]).slice(0,3),bt:(v===r.v0?r.btb:r.bte)}};
             fs.writeFileSync('recs.json',JSON.stringify({t:Date.now(),base:baseBuys.map(function(r){return mapR(r,r.v0,r.p0,r.c0)}),rev:buys.map(function(r){return mapR(r,r.v,r.price,r.chg)}),warns:warns.map(function(r){return mapR(r,r.v,r.price,r.chg)})}));
             console.log('recs.json جاهزة للنشر');
           }catch(e){console.log('recs: '+e.message)}
@@ -197,6 +229,8 @@ jobs:
             L.push(v.em+' '+r.sym+' — '+r.name);
             L.push('التوصية: '+v.rec+' '+'⭐'.repeat(v.stars)+' (ثقة '+v.conf+'٪) · السعر '+NB(price)+' ج.م ('+sign(chg)+'٪)');
             L.push('🛑 وقف '+NB(v.stop)+' · 🎯 هدف '+NB(v.t1)+' · مخاطرة '+v.risk);
+            const bt=(v===r.v0?r.btb:r.bte);
+            if(bt&&bt.d!=null)L.push('⏱️ متوقع الهدف خلال ~'+LRM+bt.d+' جلسة'+(bt.d>=10?(' (≈'+LRM+(Math.round(bt.d/5*10)/10)+' أسبوع)'):'')+(bt.p!=null?(' · تحقق تاريخيًا '+LRM+bt.p+'٪ من '+LRM+bt.n+' إشارة سابقة مشابهة'):''));
             top.forEach(function(x){L.push(x[0]+' '+x[1])});
             return L.join('\n');
           }

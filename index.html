@@ -4442,7 +4442,7 @@ async function recsRender(){
     function one(x){
       if(!x)return "";
       var col=((x.chg||0)>=0)?"var(--green)":"var(--red)";
-      return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0"><b class="num">'+(x.em||"")+" "+x.s+'</b><span class="tag">'+(x.n||"")+'</span><span class="badge b-buy">'+(x.pr||"")+'</span><span class="tag">⭐'+(x.st||0)+'</span><span class="tag num">'+(x.p!=null?x.p.toFixed(2):"—")+' ج.م</span><span class="tag num" style="color:'+col+'">'+(x.chg!=null?((x.chg>=0?"+":"")+x.chg+"%"):"—")+'</span><span class="tag">🛑 '+(x.stop!=null?x.stop.toFixed(2):"—")+' · 🎯 '+(x.t1!=null?x.t1.toFixed(2):"—")+'</span></div>';
+      return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0"><b class="num">'+(x.em||"")+" "+x.s+'</b><span class="tag">'+(x.n||"")+'</span><span class="badge b-buy">'+(x.pr||"")+'</span><span class="tag">⭐'+(x.st||0)+'</span><span class="tag num">'+(x.p!=null?x.p.toFixed(2):"—")+' ج.م</span><span class="tag num" style="color:'+col+'">'+(x.chg!=null?((x.chg>=0?"+":"")+x.chg+"%"):"—")+'</span><span class="tag">🛑 '+(x.stop!=null?x.stop.toFixed(2):"—")+' · 🎯 '+(x.t1!=null?x.t1.toFixed(2):"—")+'</span>'+(x.bt&&x.bt.d?'<span class="tag" style="color:var(--gold)">⏱️ ~'+x.bt.d+' جلسة'+(x.bt.p!=null?' · '+x.bt.p+'٪ تاريخيًا':'')+'</span>':'')+'</div>';
     }
     var h='<div class="card"><h3>📋 توصيات تقرير اليوم (تليجرام) — نسخة مطابقة بالظبط</h3><p class="small muted">دي نفس توصيات رسالة تليجرام حرفيًا زي ما اتحسبت في التقرير — من غير أي إعادة حساب في المتصفح.</p>';
     if((r.rev||[]).length){h+='<h4 class="small" style="margin:10px 0 4px">🟢 التوصيات المنقحة بعد الافتتاح (الأهم)</h4>'+r.rev.map(one).join("")}
@@ -4492,7 +4492,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.84";
+  var APP_VER="3.85";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
