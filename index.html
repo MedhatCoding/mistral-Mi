@@ -1697,6 +1697,31 @@ function renderEngineBT(){
   box.innerHTML=h;
 }
 window.engineBTRun=function(){toast("🏛️ جارٍ محاكاة سنة كاملة...");safe("شهادة المحرك",function(){engineBT(true);renderEngineBT();toast("✅ المحاكاة خلصت — ابص على الأرقام زي ما هي")})};
+function computeETAs(p){
+  try{
+    (p.buys||[]).forEach(function(x){
+      const d=WATCH_CACHE[x.sym];const a=d&&d.hist;
+      const el=function(t){const e=document.getElementById("eta-"+x.sym);if(e)e.textContent=t};
+      if(!a||a.length<100){el("⏱️ —");return}
+      let s=0,w=0,days=[],i=60;
+      (function step(){
+        const t0=Date.now();
+        while(i<a.length-31&&Date.now()-t0<40){
+          let vb=null;try{vb=analyze(a.slice(0,i+1))}catch(e){vb=null}
+          if(vb&&(vb.rec||"").indexOf("شراء")>-1&&vb.sc>=1.5){
+            let res2=0;
+            for(let j=i+1;j<=i+30;j++){if(a[j]&&a[j].l<=vb.stop){res2=-1;break}if(a[j]&&a[j].h>=vb.t1){res2=j-i;break}}
+            if(res2!==0){s++;if(res2>0){w++;days.push(res2)}}
+          }
+          i++;
+        }
+        if(i<a.length-31){setTimeout(step,10);return}
+        if(s>=8&&days.length){const med=days.slice().sort(function(u,v){return u-v})[Math.floor((days.length-1)/2)];el("⏱️ ~"+med+" جلسة · "+Math.round(w/s*100)+"٪ تاريخيًا")}
+        else{let tr=0,n2=0;for(let k=Math.max(1,a.length-14);k<a.length;k++){tr+=Math.max(a[k].h-a[k].l,Math.abs(a[k].h-a[k-1].c),Math.abs(a[k].l-a[k-1].c));n2++}const atr=n2?tr/n2:0;if(atr>0&&x.price>0){const dd=Math.round(Math.abs(x.v.t1-x.price)/(0.35*atr));el("⏱️ ~"+Math.max(2,Math.min(30,dd))+" جلسة")}else el("")}
+      })();
+    });
+  }catch(e){}
+}
 function renderPicks(p=PICKS){
   if(!p||(!p.buys&&!p.sells)){$("picks-grid").innerHTML='<div class="empty"><span class="spin"></span> جارٍ فحص السوق تلقائيًا لتوليد توصيات اليوم — من غير أي زر</div>';return}
   const card=(x,isBuy)=>`<div class="card" style="background:var(--card2)">
@@ -1704,7 +1729,7 @@ function renderPicks(p=PICKS){
     <div class="row" style="gap:8px;margin:8px 0"><span class="rec-badge ${x.v.cls}" style="font-size:14px;padding:7px 12px">${x.v.em} ${x.v.rec}</span><span class="small muted">ثقة ${x.v.conf}%</span><span class="small muted">السعر ${NF(x.price)}</span>${isBuy&&x.ml!=null?'<span class="badge '+(x.ml>=0.55?"b-buy":x.ml<=0.45?"b-sell":"b-neu")+'" title="احتمال تفوق السهم على أقرانه خلال ٤ أسابيع حسب نموذجي ML — إشارة مؤيدة فقط مش قرار">🧠 ML '+(x.ml*100).toFixed(0)+'%</span>':""}${x.v.risk?'<span class="badge b-hold" title="تصنيف المخاطرة من المدى اليومي الحقيقي (ATR) نسبة للسعر — الوقف والهدف متحركين مع تقلب السهم">🛡️ مخاطرة '+x.v.risk+'</span>':""}${isBuy&&REV[x.sym]?'<span class="badge '+(REV[x.sym].st==="ok"?"b-buy":REV[x.sym].st==="warn"?"b-hold":"b-sell")+'" title="'+(REV[x.sym].msgs||[]).join(" — ")+'">'+(REV[x.sym].st==="ok"?"✅ اتمراجعت: لسه قايمة":REV[x.sym].st==="warn"?"⚠️ الصورة اتغيرت":"❌ اتلغت")+'</span>':""}</div>
     <ul class="reasons small">${x.v.rs.filter(r=>r[0]!=="ℹ️").slice(0,3).map(r=>`<li>${r[0]} ${r[1]}</li>`).join("")}</ul>
     ${REV[x.sym]&&REV[x.sym].st!=="ok"&&(REV[x.sym].msgs||[]).length?'<ul class="reasons small" style="margin-top:6px;border:1px solid var(--border2);border-radius:10px;padding:6px 10px;background:rgba(255,180,84,.06)">'+REV[x.sym].msgs.map(m=>`<li>⚠️ ${m}</li>`).join("")+'</ul>':""}
-    <div class="row small" style="gap:12px;margin-top:6px"><span class="sharia-green">دعم ${NF(x.v.sup)}</span><span class="down">مقاومة ${NF(x.v.res)}</span><span style="color:var(--amber)">وقف ${NF(x.v.stop)}</span><span style="color:var(--accent2)">هدف ${NF(x.v.t1)}</span> ${pickRR(x)}${priceAgeTxt(x.sym)?'<span class="tag">🕐 '+priceAgeTxt(x.sym)+'</span>':""}</div>
+    <div class="row small" style="gap:12px;margin-top:6px"><span class="sharia-green">دعم ${NF(x.v.sup)}</span><span class="down">مقاومة ${NF(x.v.res)}</span><span style="color:var(--amber)">وقف ${NF(x.v.stop)}</span><span style="color:var(--accent2)">هدف ${NF(x.v.t1)}</span> ${pickRR(x)}${isBuy?`<span class="tag" id="eta-${x.sym}" style="color:var(--gold)">⏱️ جارٍ حساب المدة…</span>`:""}${priceAgeTxt(x.sym)?'<span class="tag">🕐 '+priceAgeTxt(x.sym)+'</span>':""}</div>
     <div style="margin-top:8px"><button class="btn mini" onclick="openStock('${x.sym}')">📊 التحليل الكامل</button>${isBuy?`<button class="btn mini" style="margin-inline-start:6px" onclick="revalidatePick('${x.sym}')" title="التوصية اتحسبت على إغلاقات — الزر ده يجيب أحدث سعر ويعيد التحليل من الصفر ويقارن قبل ما تنفذ">🔍 راجع قبل ما تشتري</button>`:""}</div>
   </div>`;
   const fresh=p.time&&Date.now()-p.time<24*60*60*1000;
@@ -1714,6 +1739,7 @@ function renderPicks(p=PICKS){
   $("picks-grid").innerHTML=hdr+`
     <div><h3 class="small" style="margin-bottom:8px">🟢 أقوى فرص الشراء</h3>${p.buys.map(x=>card(x,true)).join("")||'<div class="empty">لا فرص واضحة الآن</div>'}</div>
     <div><h3 class="small" style="margin-bottom:8px">🔴 تحذيرات / فرص بيع</h3>${(p.sells||[]).map(x=>card(x,false)).join("")||'<div class="empty">لا تحذيرات قوية الآن</div>'}</div>`;
+  computeETAs(p);
 }
 
 /* ═════════════════════════ 12) الربط بنموذج LLM حقيقي ═════════════════════════ */
@@ -4492,7 +4518,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.85";
+  var APP_VER="3.86";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
