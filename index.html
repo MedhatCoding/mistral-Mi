@@ -1700,6 +1700,7 @@ window.engineBTRun=function(){toast("🏛️ جارٍ محاكاة سنة كام
 function computeETAs(p){
   try{
     (p.buys||[]).forEach(function(x){
+      if(x.bt&&x.bt.d)return;/* ⏱️ جاهزة من السيرفر */
       const d=WATCH_CACHE[x.sym];const a=d&&d.hist;
       const el=function(t){const e=document.getElementById("eta-"+x.sym);if(e)e.textContent=t};
       if(!a||a.length<100){el("⏱️ —");return}
@@ -1729,13 +1730,13 @@ function renderPicks(p=PICKS){
     <div class="row" style="gap:8px;margin:8px 0"><span class="rec-badge ${x.v.cls}" style="font-size:14px;padding:7px 12px">${x.v.em} ${x.v.rec}</span><span class="small muted">ثقة ${x.v.conf}%</span><span class="small muted">السعر ${NF(x.price)}</span>${isBuy&&x.ml!=null?'<span class="badge '+(x.ml>=0.55?"b-buy":x.ml<=0.45?"b-sell":"b-neu")+'" title="احتمال تفوق السهم على أقرانه خلال ٤ أسابيع حسب نموذجي ML — إشارة مؤيدة فقط مش قرار">🧠 ML '+(x.ml*100).toFixed(0)+'%</span>':""}${x.v.risk?'<span class="badge b-hold" title="تصنيف المخاطرة من المدى اليومي الحقيقي (ATR) نسبة للسعر — الوقف والهدف متحركين مع تقلب السهم">🛡️ مخاطرة '+x.v.risk+'</span>':""}${isBuy&&REV[x.sym]?'<span class="badge '+(REV[x.sym].st==="ok"?"b-buy":REV[x.sym].st==="warn"?"b-hold":"b-sell")+'" title="'+(REV[x.sym].msgs||[]).join(" — ")+'">'+(REV[x.sym].st==="ok"?"✅ اتمراجعت: لسه قايمة":REV[x.sym].st==="warn"?"⚠️ الصورة اتغيرت":"❌ اتلغت")+'</span>':""}</div>
     <ul class="reasons small">${x.v.rs.filter(r=>r[0]!=="ℹ️").slice(0,3).map(r=>`<li>${r[0]} ${r[1]}</li>`).join("")}</ul>
     ${REV[x.sym]&&REV[x.sym].st!=="ok"&&(REV[x.sym].msgs||[]).length?'<ul class="reasons small" style="margin-top:6px;border:1px solid var(--border2);border-radius:10px;padding:6px 10px;background:rgba(255,180,84,.06)">'+REV[x.sym].msgs.map(m=>`<li>⚠️ ${m}</li>`).join("")+'</ul>':""}
-    <div class="row small" style="gap:12px;margin-top:6px"><span class="sharia-green">دعم ${NF(x.v.sup)}</span><span class="down">مقاومة ${NF(x.v.res)}</span><span style="color:var(--amber)">وقف ${NF(x.v.stop)}</span><span style="color:var(--accent2)">هدف ${NF(x.v.t1)}</span> ${pickRR(x)}${isBuy?`<span class="tag" id="eta-${x.sym}" style="color:var(--gold)">⏱️ جارٍ حساب المدة…</span>`:""}${priceAgeTxt(x.sym)?'<span class="tag">🕐 '+priceAgeTxt(x.sym)+'</span>':""}</div>
+    <div class="row small" style="gap:12px;margin-top:6px"><span class="sharia-green">دعم ${NF(x.v.sup)}</span><span class="down">مقاومة ${NF(x.v.res)}</span><span style="color:var(--amber)">وقف ${NF(x.v.stop)}</span><span style="color:var(--accent2)">هدف ${NF(x.v.t1)}</span> ${pickRR(x)}${isBuy?(x.bt&&x.bt.d?`<span class="tag" style="color:var(--gold)">⏱️ ~${x.bt.d} جلسة${x.bt.p!=null?` · ${x.bt.p}٪ تاريخيًا`:""}</span>`:`<span class="tag" id="eta-${x.sym}" style="color:var(--gold)">⏱️ جارٍ حساب المدة…</span>`):""}${priceAgeTxt(x.sym)?'<span class="tag">🕐 '+priceAgeTxt(x.sym)+'</span>':""}</div>
     <div style="margin-top:8px"><button class="btn mini" onclick="openStock('${x.sym}')">📊 التحليل الكامل</button>${isBuy?`<button class="btn mini" style="margin-inline-start:6px" onclick="revalidatePick('${x.sym}')" title="التوصية اتحسبت على إغلاقات — الزر ده يجيب أحدث سعر ويعيد التحليل من الصفر ويقارن قبل ما تنفذ">🔍 راجع قبل ما تشتري</button>`:""}</div>
   </div>`;
   const fresh=p.time&&Date.now()-p.time<24*60*60*1000;
   const ageMin=p.time?Math.round((Date.now()-p.time)/60000):null;
   const stale=p.stale||!fresh;
-  const hdr=`<div class="row small" style="gap:10px;align-items:center;margin-bottom:10px">${stale?'<span class="badge b-sell">⚠️ أسعار قديمة</span>':'<span class="badge b-buy">🟢 أسعار مباشرة</span>'}${p.regime&&p.regime.regime==="bull"?'<span class="badge b-buy" title="EGX30 فوق متوسطه 200 جلسة">🐂 نظام سوق صاعد — المؤشر فوق متوسطه '+Math.abs(p.regime.dist).toFixed(1)+'٪</span>':p.regime?'<span class="badge b-sell" title="EGX30 تحت متوسطه 200 جلسة — التوصيات الضعيفة مستبعدة">🐻 نظام سوق هابط — المؤشر '+Math.abs(p.regime.dist).toFixed(1)+'٪ تحت متوسط ٢٠٠ جلسة · عتبة الشراء مرفوعة</span>':""}<span class="muted">آخر تحديث أسعار: ${p.time?new Date(p.time).toLocaleString("ar-EG"):"—"}${ageMin!=null?" (قبل "+ageMin+" دقيقة)":""}</span>${p.buys&&p.buys.length?'<span class="small muted">🔁 بتتراجع تلقائيًا كل ٢٠ دقيقة أثناء الجلسة</span>':""}</div>${(p.noliq>0||p.noliq2>0)?'<div class="small muted" style="margin:-4px 0 10px">🚫 استُبعد '+((p.noliq||0)+(p.noliq2||0))+' سهم قليل السيولة (أقل من مليون ج.م تداول يومي متوسط) من فرص الشراء'+(p.noliq2>0?' — منهم '+p.noliq2+' بعد فحص الحجم الحقيقي للفرص النهائية':'')+'.</div>':""}`;
+  const hdr=`<div class="row small" style="gap:10px;align-items:center;margin-bottom:10px">${stale?'<span class="badge b-sell">⚠️ أسعار قديمة</span>':'<span class="badge b-buy">🟢 أسعار مباشرة</span>'}${p.server?'<span class="badge b-buy" title="محسوبة على GitHub Actions كل ٣٠ دقيقة أثناء الجلسة — بتوصل حتى لو النت عندك بطيء">🛰️ من السيرفر</span>':""}${p.regime&&p.regime.regime==="bull"?'<span class="badge b-buy" title="EGX30 فوق متوسطه 200 جلسة">🐂 نظام سوق صاعد — المؤشر فوق متوسطه '+Math.abs(p.regime.dist).toFixed(1)+'٪</span>':p.regime?'<span class="badge b-sell" title="EGX30 تحت متوسطه 200 جلسة — التوصيات الضعيفة مستبعدة">🐻 نظام سوق هابط — المؤشر '+Math.abs(p.regime.dist).toFixed(1)+'٪ تحت متوسط ٢٠٠ جلسة · عتبة الشراء مرفوعة</span>':""}<span class="muted">آخر تحديث أسعار: ${p.time?new Date(p.time).toLocaleString("ar-EG"):"—"}${ageMin!=null?" (قبل "+ageMin+" دقيقة)":""}</span>${p.buys&&p.buys.length?'<span class="small muted">🔁 بتتراجع تلقائيًا كل ٢٠ دقيقة أثناء الجلسة</span>':""}</div>${(p.noliq>0||p.noliq2>0)?'<div class="small muted" style="margin:-4px 0 10px">🚫 استُبعد '+((p.noliq||0)+(p.noliq2||0))+' سهم قليل السيولة (أقل من مليون ج.م تداول يومي متوسط) من فرص الشراء'+(p.noliq2>0?' — منهم '+p.noliq2+' بعد فحص الحجم الحقيقي للفرص النهائية':'')+'.</div>':""}`;
   $("picks-grid").innerHTML=hdr+`
     <div><h3 class="small" style="margin-bottom:8px">🟢 أقوى فرص الشراء</h3>${p.buys.map(x=>card(x,true)).join("")||'<div class="empty">لا فرص واضحة الآن</div>'}</div>
     <div><h3 class="small" style="margin-bottom:8px">🔴 تحذيرات / فرص بيع</h3>${(p.sells||[]).map(x=>card(x,false)).join("")||'<div class="empty">لا تحذيرات قوية الآن</div>'}</div>`;
@@ -4461,6 +4462,16 @@ async function goldRender(manual){
 }
 window.goldRender=goldRender;
 /* تشغيل: الذهب مرة عند الفتح + تحديث تلقائي كل 15 دقيقة · المؤشر بيتحدث كل 20 ثانية مع وصول بيانات الأسهم */
+/* 🛰️ توصيات السيرفر: الماسح شغال على GitHub Actions كل ٣٠ دقيقة وينشر picks.json — التطبيق بيعرضها أول ما يفتح من غير فحص على الجهاز */
+function serverPicksFetch(){
+  try{
+    fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/picks.json?cb="+Date.now()).then(function(j){
+      if(!j||!j.t||!(j.buys||[]).length||Date.now()-j.t>90*60*1000)return;/* قديمة — الفحص المحلي يكمل عادي */
+      var mk=function(x){return {sym:x.s,n:x.n,price:x.p,chg:x.chg,ml:null,bt:(x.bt&&x.bt.d?x.bt:null),v:{rec:x.pr,cls:(x.cls||"rec-buy"),em:x.em,stars:(x.st||0),conf:(x.conf||0),sc:(x.sc||0),stop:x.stop,t1:x.t1,sup:x.sup,res:x.res,risk:x.risk,rs:(x.rs||[])}}};
+      try{renderPicks({time:j.t,server:true,buys:(j.buys||[]).map(mk),sells:(j.sells||[]).map(mk)})}catch(z){}
+    }).catch(function(){});
+  }catch(e){}
+}
 async function recsRender(){
   var box=document.getElementById("recs-card");if(!box)return;
   try{
@@ -4512,6 +4523,8 @@ function boot(){
   setInterval(function(){goldRender(false);},15*60*1000);
   serverBotRender();
   setInterval(function(){serverBotRender();},5*60*1000);
+  serverPicksFetch();
+  setInterval(serverPicksFetch,10*60*1000);
   recsRender();
   setInterval(function(){recsRender();},30*60*1000);
 }
@@ -4520,7 +4533,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.87";
+  var APP_VER="3.88";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";

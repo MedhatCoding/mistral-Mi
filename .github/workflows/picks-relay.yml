@@ -1,0 +1,128 @@
+# 🛰️ mistral-Mi — ريليه توصيات السيرفر: الماسح الذكي نفسه شغال على GitHub Actions
+# كل ٣٠ دقيقة أثناء جلسة القاهرة، ينشر picks.json على فرع picks — الموقع بيعرضها مباشرة من غير فحص على الجهاز
+name: ريليه توصيات السيرفر
+on:
+  schedule:
+    - cron: "13,43 7-12 * * 0-4" # كل نصف ساعة أثناء الجلسة (مش دقيقة 0 — GitHub بيأسقطها)
+  push:
+    branches: [main]
+    paths: [".github/workflows/picks-relay.yml"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: picks-relay
+  cancel-in-progress: false
+jobs:
+  picks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: تحميل الكود
+        uses: actions/checkout@v4
+      - name: تنزيل التاريخ والأسعار اللحظية
+        shell: bash
+        run: |
+          set -uo pipefail
+          curl -fsSL --retry 2 --max-time 60 -o hist.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/hist/hist.json" && echo "✅ hist.json ($(wc -c < hist.json) بايت)" || { echo "❌ hist.json مش متاحة"; exit 1; }
+          curl -fsSL --retry 2 --max-time 30 -o live.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/live/live.json" && echo "✅ live.json" || echo "⚠️ live.json مش متاحة — هنحسب على الإغلاقات"
+      - name: استخراج محرك التحليل من index.html
+        shell: bash
+        run: |
+          set -uo pipefail
+          {
+            grep -m1 "^const NF=" index.html
+            grep -m1 "^const lastOf=" index.html
+            grep -m1 "^let SIGW=" index.html
+            grep -E "^function (sma|ema|rsi|macd|boll|atr)\(" index.html
+            awk '/^function analyze\(/{f=1} f{print} f&&/^}/{f=0}' index.html
+          } > engine.js
+          awk '/^const S = \[/{f=1} f{print} f&&/\]\.map\(a=>/{f=0}' index.html > names.js
+          echo 'const NAMES=Object.fromEntries(S.map(x=>[x.t,x.n]));' >> names.js
+          grep -E "^const SHARIA_(IDX|EXTRA) ?=" index.html > sharia.js
+          echo 'const SHARIA=[...SHARIA_IDX,...SHARIA_EXTRA];' >> sharia.js
+          if ! grep -q "function analyze" engine.js; then echo "❌ استخراج المحرك فشل"; exit 1; fi
+          echo "✅ المحرك اتعمل ($(wc -l < engine.js) سطر)"
+      - name: بناء توصيات السيرفر
+        shell: bash
+        run: |
+          cat > picks_body.js <<'PICKS_EOF'
+          const fs=require('fs');
+          function readJSON(p,d){try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){return d}}
+          const live=readJSON('live.json',null),hist=readJSON('hist.json',null);
+          if(!hist||!hist.stocks){console.log('❌ hist.json مش موجودة');process.exit(1)}
+          const Q={};
+          if(live&&live.t&&Array.isArray(live.quotes))live.quotes.forEach(function(q){if(q&&q.ticker&&q.price!=null)Q[q.ticker]={price:q.price,chg:(q.change_percent!=null?q.change_percent:0),vol:(q.volume!=null?q.volume:null)}});
+          const res=[];
+          Object.keys(hist.stocks).forEach(function(sym){
+            const raw=hist.stocks[sym]||[];
+            const arr=raw.filter(function(c){return c&&c.c>0}).map(function(c){return {d:(c.d||null),o:(c.o!=null?c.o:c.c),h:(c.h!=null?c.h:c.c),l:(c.l!=null?c.l:c.c),c:c.c,v:(c.v||0)}});
+            if(arr.length<60)return;
+            let v=analyze(arr);if(!v)return;
+            let price=arr[arr.length-1].c,prev=arr.length>1?arr[arr.length-2].c:price,chg=arr.length>1?(price-prev)/prev*100:0,vol=arr[arr.length-1].v||0;
+            const q=Q[sym];
+            if(q&&q.price>0&&Math.abs(q.price-price)/price>0.001){
+              const arrL=arr.concat([{d:new Date().toISOString().slice(0,10),o:price,h:Math.max(price,q.price),l:Math.min(price,q.price),c:q.price,v:(q.vol||0)}]);
+              const nv=analyze(arrL);if(nv)v=nv;
+              prev=price;price=q.price;chg=(q.chg!=null?q.chg:chg);if(q.vol)vol=q.vol;
+            }
+            res.push({sym:sym,name:(NAMES[sym]||sym),price:price,prev:prev,chg:chg,vol:vol,v:v,sh:SHARIA.includes(sym),arr:arr});
+          });
+          /* نفس محرك التطبيق: الشريعة فقط ☪️ · عتبة شراء sc>=2 · أفضل 3 + أعلى 6 تحذيرات · فلتر سيولة مليون ج.م */
+          const liq=res.filter(function(r){return r.vol==null||r.price*r.vol>=1000000});
+          const buys=liq.filter(function(r){return r.sh&&r.v.sc>=2}).sort(function(a,b){return b.v.sc-a.v.sc}).slice(0,3);
+          const bs={};buys.forEach(function(b){bs[b.sym]=1});
+          const sells=liq.filter(function(r){return r.sh&&r.v.sc<=-1.5}).sort(function(a,b){return a.v.sc-b.v.sc}).filter(function(r){return !bs[r.sym]}).slice(0,6);
+          /* ⏱️ نفس الاختبار التاريخي بتاع تقرير تليجرام: وسيط الجلسات للهدف + احتمال التحقق */
+          const btOne=function(r){
+            try{
+              const a=r.arr;if(!a||a.length<100||!r.v||r.v.sc<1.5)return null;
+              let s=0,w=0,days=[];
+              for(let i=60;i<a.length-31;i++){
+                let vb;try{vb=analyze(a.slice(0,i+1))}catch(e1){continue}
+                if(!vb||(vb.rec||'').indexOf('شراء')<0||vb.sc<1.5)continue;
+                let res2=0;
+                for(let j=i+1;j<=i+30;j++){
+                  if(a[j].l<=vb.stop){res2=-1;break}
+                  if(a[j].h>=vb.t1){res2=j-i;break}
+                }
+                if(res2===0)continue;
+                s++;if(res2>0){w++;days.push(res2)}
+              }
+              if(s>=8&&days.length){const med=days.slice().sort(function(x,y){return x-y})[Math.floor((days.length-1)/2)];return {d:med,p:Math.round(w/s*100),n:s}}
+              let tr=0,n2=0;
+              for(let k=Math.max(1,a.length-14);k<a.length;k++){tr+=Math.max(a[k].h-a[k].l,Math.abs(a[k].h-a[k-1].c),Math.abs(a[k].l-a[k-1].c));n2++}
+              const atr=n2?tr/n2:0;
+              if(!(atr>0)||!(r.price>0))return null;
+              const dd=Math.round(Math.abs(r.v.t1-r.price)/(0.35*atr));
+              return {d:Math.max(2,Math.min(30,dd)),p:null,n:s};
+            }catch(e){return null}
+          };
+          const mk=function(r,withBt){
+            const v=r.v;
+            const o={s:r.sym,n:r.name,pr:v.rec,cls:v.cls,em:v.em,st:v.stars,sc:Math.round(v.sc*100)/100,conf:v.conf,p:r.price,chg:Math.round(r.chg*100)/100,sup:v.sup,res:v.res,stop:v.stop,t1:v.t1,risk:v.risk,rs:(v.rs||[]).slice(0,3),bt:null};
+            if(withBt)o.bt=btOne(r);
+            return o;
+          };
+          fs.writeFileSync('picks.json',JSON.stringify({t:Date.now(),src:'server',buys:buys.map(function(r){return mk(r,true)}),sells:sells.map(function(r){return mk(r,false)})}));
+          console.log('✅ picks.json: '+buys.length+' فرصة شراء + '+sells.length+' تحذير (فحص شريعة '+res.filter(function(r){return r.sh}).length+' سهم)');
+          PICKS_EOF
+          cat engine.js names.js sharia.js picks_body.js > picks.js
+          node picks.js
+      - name: نشر picks.json على فرع picks
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          [ -f picks.json ] || { echo "مفيش picks.json"; exit 1; }
+          mkdir -p /tmp/pub
+          cp picks.json /tmp/pub/
+          cd /tmp/pub
+          git init -q -b picks
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "chore: توصيات السيرفر [skip ci]"
+          git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" picks
+          echo "✅ picks.json اتنشرت على فرع picks"
