@@ -492,8 +492,7 @@
       <p class="small muted" style="line-height:1.8">التوصيات هنا للأسهم <b>المتوافقة مع الشريعة ☪️ فقط</b> — مفيش أي فرص تانية خالص: يفحص المحرك ٤٧ سهمًا متوافقًا مع الشريعة (مكونات مؤشر EGX33 الرسمية + الأسهم المتوافقة خارج المؤشر) ويقيّم كل سهم على 6 محاور (الاتجاه · الزخم · التقلب · الموقع من المدى · بولنجر) ثم يرتّب أقوى فرص الشراء وأهم التحذيرات — في طلب واحد وسريع. ولو مش عايز أسهم أصلاً، تحت في قسم «صناديق متوافقة مع الشريعة» فرص حلال جاهزة للتتبع.</p>
       <div class="bar hide" id="scan-bar-wrap" style="margin:10px 0"><div id="scan-bar" style="width:0%"></div></div>
       <div class="grid2" id="picks-grid"></div>
-      <div id="recs-card" style="margin-top:14px"></div>
-      <div id="egx33-card" style="margin-top:14px"></div>
+            <div id="egx33-card" style="margin-top:14px"></div>
       <div id="gold-card" style="margin-top:14px"></div>
       <div id="serverbot-card" style="margin-top:14px"></div>
       <div id="picks-ai" style="margin-top:12px"></div>
@@ -4472,26 +4471,6 @@ function serverPicksFetch(){
     }).catch(function(){});
   }catch(e){}
 }
-async function recsRender(){
-  var box=document.getElementById("recs-card");if(!box)return;
-  try{
-    var r=await fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/recs/recs.json?cb="+Date.now());
-    if(!r||(!r.base&&!r.rev)){box.innerHTML="";return}
-    var when=r.t?new Date(r.t).toLocaleString("ar-EG"):"—";
-    function one(x){
-      if(!x)return "";
-      var col=((x.chg||0)>=0)?"var(--green)":"var(--red)";
-      return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0"><b class="num">'+(x.em||"")+" "+x.s+'</b><span class="tag">'+(x.n||"")+'</span><span class="badge b-buy">'+(x.pr||"")+'</span><span class="tag">⭐'+(x.st||0)+'</span><span class="tag num">'+(x.p!=null?x.p.toFixed(2):"—")+' ج.م</span><span class="tag num" style="color:'+col+'">'+(x.chg!=null?((x.chg>=0?"+":"")+x.chg+"%"):"—")+'</span><span class="tag">🛑 '+(x.stop!=null?x.stop.toFixed(2):"—")+' · 🎯 '+(x.t1!=null?x.t1.toFixed(2):"—")+'</span>'+(x.bt&&x.bt.d?'<span class="tag" style="color:var(--gold)">⏱️ ~'+x.bt.d+' جلسة'+(x.bt.p!=null?' · '+x.bt.p+'٪ تاريخيًا':'')+'</span>':'')+'</div>';
-    }
-    var h='<div class="card"><h3>📋 توصيات تقرير اليوم (تليجرام) — نسخة مطابقة بالظبط</h3><p class="small muted">دي نفس توصيات رسالة تليجرام حرفيًا زي ما اتحسبت في التقرير — من غير أي إعادة حساب في المتصفح.</p>';
-    if((r.rev||[]).length){h+='<h4 class="small" style="margin:10px 0 4px">🟢 التوصيات المنقحة بعد الافتتاح (الأهم)</h4>'+r.rev.map(one).join("")}
-    if((r.base||[]).length){h+='<h4 class="small" style="margin:10px 0 4px">🕐 التوصيات الأساسية (إغلاقات اليوم السابق)</h4>'+r.base.map(one).join("")}
-    if((r.warns||[]).length){h+='<h4 class="small" style="margin:10px 0 4px">🔴 تحذيرات</h4>'+r.warns.map(one).join("")}
-    if(!(r.rev||[]).length&&!(r.base||[]).length){h+='<p class="small muted" style="margin-top:8px">آخر تقرير مكانش فيه فرص واضحة.</p>'}
-    h+='<p class="small muted" style="margin-top:8px">آخر تقرير: '+when+' · بيتحدث تلقائيًا الساعة 11:03 كل يوم جلسة.</p></div>';
-    box.innerHTML=h;
-  }catch(e){try{box.innerHTML="";}catch(z){}}
-}
 async function serverBotRender(){
   var box=document.getElementById("serverbot-card");if(!box)return;
   try{
@@ -4525,15 +4504,13 @@ function boot(){
   setInterval(function(){serverBotRender();},5*60*1000);
   serverPicksFetch();
   setInterval(serverPicksFetch,10*60*1000);
-  recsRender();
-  setInterval(function(){recsRender();},30*60*1000);
 }
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.88";
+  var APP_VER="3.89";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";

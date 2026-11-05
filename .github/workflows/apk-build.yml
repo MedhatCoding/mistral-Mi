@@ -17,15 +17,20 @@ jobs:
           node-version: '20'
       - name: Ensure Android SDK pieces
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager 'platforms;android-34' 'build-tools;34.0.0' >/dev/null
+          SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKM" ]; then
+            yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+            "$SDKM" 'platforms;android-34' 'build-tools;34.0.0' >/dev/null 2>&1 || true
+          else
+            echo 'sdkmanager مش موجود في المسار المتوقع — هستخدم SDK الجاهز على الـ runner'
+          fi
       - name: Create Capacitor wrapper app
         run: |
           mkdir -p app/www
           echo '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>' > app/www/index.html
           cd app
           npm init -y >/dev/null
-          npm install @capacitor/cli @capacitor/core @capacitor/android --no-audit --no-fund --silent
+          npm install @capacitor/cli @capacitor/core @capacitor/android sharp --no-audit --no-fund --silent
           cat > capacitor.config.json <<'CAP_EOF'
           {
             "appId": "com.medhat.mistralmi",
@@ -36,6 +41,28 @@ jobs:
           CAP_EOF
           npx cap add android
           sed -i 's/#FFFFFF/#0a0f1c/g' android/app/src/main/res/values/*.xml || true
+      - name: Build mistral-Mi icons (logo + dark background)
+        run: |
+          cd app
+          cat > icons.js <<'ICO_EOF'
+          const sharp=require('sharp');
+          const fs=require('fs');
+          (async()=>{
+            const dens=[['mdpi',48,108],['hdpi',72,162],['xhdpi',96,216],['xxhdpi',144,324],['xxxhdpi',192,432]];
+            for(const [d,sz,fg] of dens){
+              const dir='android/app/src/main/res/mipmap-'+d;
+              const sq=await sharp('../icon.svg',{density:300}).resize(sz,sz).png().toBuffer();
+              fs.writeFileSync(dir+'/ic_launcher.png',sq);
+              fs.writeFileSync(dir+'/ic_launcher_round.png',sq);
+              const inner=Math.round(fg*0.58);
+              const logo=await sharp('../icon.svg',{density:300}).resize(inner,inner).png().toBuffer();
+              const fgbuf=await sharp({create:{width:fg,height:fg,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:logo,gravity:'centre'}]).png().toBuffer();
+              fs.writeFileSync(dir+'/ic_launcher_foreground.png',fgbuf);
+            }
+            console.log('✅ أيقونات mistral-Mi اتعملت بكل المقاسات');
+          })().catch(e=>{console.error(e.message);process.exit(1)});
+          ICO_EOF
+          node icons.js
       - name: Build debug APK
         run: cd app/android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon -q
       - uses: actions/upload-artifact@v4
