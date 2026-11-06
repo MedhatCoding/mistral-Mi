@@ -1,3 +1,4 @@
+# mistral-Mi APK — البناء الحالي بيشمّل تصميم v3.91 (٥ تابات + لوجو + شعارات) — الموقع نفسه بيتحدث أوتوماتيك، الـ APK بيلفه زي ما هو
 name: Build APK (mistral-Mi)
 on:
   workflow_dispatch:
