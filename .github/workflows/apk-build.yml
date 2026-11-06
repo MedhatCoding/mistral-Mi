@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     paths: ['.github/workflows/apk-build.yml']
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
