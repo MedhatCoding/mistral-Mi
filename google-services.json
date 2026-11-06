@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1052752305819",
+    "project_id": "mistral-mi",
+    "storage_bucket": "mistral-mi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1052752305819:android:071c9dc263f1a38797703e",
+        "android_client_info": {
+          "package_name": "com.medhat.mistralmi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8Fp-OT6SmaPKMn_zNgnjs05ZBbObfpa0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -42,6 +42,15 @@ jobs:
           CAP_EOF
           npx cap add android
           sed -i 's/#FFFFFF/#0a0f1c/g' android/app/src/main/res/values/*.xml || true
+          # 🔔 Firebase: تفعيل إشعارات FCM على التليفون
+          cp ../google-services.json android/app/google-services.json
+          sed -i '0,/^dependencies {/s//dependencies {\nclasspath "com.google.gms:google-services:4.4.2"/' android/build.gradle
+          printf "\napply plugin: 'com.google.gms.google-services'\ndependencies { implementation 'com.google.firebase:firebase-messaging:24.1.0' }\n" >> android/app/build.gradle
+          MFILE="android/app/src/main/java/com/medhat/mistralmi/MainActivity.java"
+          grep -q "import com.google.firebase" "$MFILE" || sed -i '0,/^package /s/package \(.*\)/package \1\nimport com.google.firebase.messaging.FirebaseMessaging;/' "$MFILE"
+          sed -i 's|super.onCreate(savedInstanceState);|super.onCreate(savedInstanceState);\n        try{FirebaseMessaging.getInstance().subscribeToTopic("mistral-mi");}catch(Exception x){}|' "$MFILE"
+          grep -q subscribeToTopic "$MFILE" || sed -i 's|public class MainActivity extends BridgeActivity {|public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        try{com.google.firebase.messaging.FirebaseMessaging.getInstance().subscribeToTopic("mistral-mi");}catch(Exception x){}\n    }|' "$MFILE"
+          grep -q subscribeToTopic "$MFILE" && echo '✅ التطبيق هيتعرف على إشعارات Firebase ويسجل في topic mistral-mi' || { echo '❌ فشل حقن كود الإشعارات'; cat "$MFILE"; exit 1; }
       - name: Build mistral-Mi icons (logo + dark background)
         run: |
           cd app
