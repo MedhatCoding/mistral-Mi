@@ -131,7 +131,6 @@ jobs:
           git commit -qm "chore: توصيات السيرفر [skip ci]"
           git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" picks
           echo "✅ picks.json اتنشرت على فرع picks"
-
       - name: 🔔 إشعار الفرص الجديدة على الموبايل (FCM)
         shell: bash
         env:
@@ -139,6 +138,8 @@ jobs:
         run: |
           set -uo pipefail
           if [ -z "$FCM_SA_KEY" ]; then echo "⚠️ سر FCM_SA_KEY مش متضاف لسه (Settings ← Secrets ← Actions) — الإشعار متعطل مؤقتًا"; exit 0; fi
+          EV="${{ github.event_name }}"
+          TEST=0; [ "$EV" = "push" ] && TEST=1
           mkdir -p fcmwork && cd fcmwork
           cp ../picks.json ../picks-old.json . 2>/dev/null || true
           npm install google-auth-library --no-audit --no-fund --silent >/dev/null 2>&1
@@ -148,21 +149,27 @@ jobs:
           function readJSON(p,d){try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){return d}}
           (async()=>{
             try{
+              const isTest=process.env.FCM_TEST==='1';
               const cur=readJSON('picks.json',null),old=readJSON('picks-old.json',null);
-              if(!cur||!(cur.buys||[]).length){console.log('مفيش فرص شراء — مفيش إشعار');return}
-              const curS=(cur.buys||[]).map(b=>b.s).sort().join(',');
-              const oldS=(old&&old.buys)?old.buys.map(b=>b.s).sort().join(','):null;
-              if(curS===oldS){console.log('نفس الفرص زي ما كانت — مفيش إشعار (منع السبام)');return}
+              let lines=[];
+              if(!isTest){
+                if(!cur||!(cur.buys||[]).length){console.log('مفيش فرص شراء — مفيش إشعار');return}
+                const curS=(cur.buys||[]).map(b=>b.s).sort().join(',');
+                const oldS=(old&&old.buys)?old.buys.map(b=>b.s).sort().join(','):null;
+                if(curS===oldS){console.log('نفس الفرص زي ما كانت — مفيش إشعار (منع السبام)');return}
+              }
+              lines=(cur&&cur.buys||[]).map(b=>b.n+' ('+b.s+') · '+b.pr+' · '+b.p+' ج.م'+(b.t1!=null?' · هدف '+b.t1:''));
               const creds=JSON.parse(process.env.FCM_SA_KEY);
               const proj=creds.project_id;
               const auth=new GoogleAuth({credentials:creds,scopes:['https://www.googleapis.com/auth/firebase.messaging']});
               const client=await auth.getClient();
               const tok=(await client.getAccessToken()).token;
-              const lines=(cur.buys||[]).map(b=>b.n+' ('+b.s+') · '+b.pr+' · '+b.p+' ج.م'+(b.t1!=null?' · هدف '+b.t1:''));
-              const res=await fetch('https://fcm.googleapis.com/v1/projects/'+proj+'/messages:send',{method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:{topic:'mistral-mi',notification:{title:'🚀 mistral-Mi — فرص شراء جديدة',body:lines.join('\n').slice(0,900)},android:{priority:'HIGH',notification:{channel_id:'mistral-picks',sound:'default'}}}})});
-              if(res.ok){console.log('✅ الإشعار اتبعت: '+lines.join(' | '))}
-              else{console.log('⚠️ فشل الإرسال HTTP '+res.status);console.log((await res.text()).slice(0,300))}
-            }catch(e){console.log('⚠️ '+e.message)}
+              const title=isTest?'🔔 إشعار تجريبي — mistral-Mi':'🚀 mistral-Mi — فرص شراء جديدة';
+              const body=isTest?'ده إشعار تجريبي — لو وصل على تليفونك يبقى الإشعارات تمام ✅':lines.join('\n').slice(0,900);
+              const res=await fetch('https://fcm.googleapis.com/v1/projects/'+proj+'/messages:send',{method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({message:{topic:'mistral-mi',notification:{title:title,body:body},android:{priority:'HIGH',notification:{channel_id:'mistral-picks',sound:'default'}}}})});
+              if(res.ok){console.log('✅ الإشعار اتبعت للتوبك: '+(isTest?'تجريبي':lines.join(' | ')))}
+              else{console.log('❌ فشل الإرسال HTTP '+res.status);console.log((await res.text()).slice(0,400));process.exit(1)}
+            }catch(e){console.log('❌ مشكلة في الإشعار: '+e.message);process.exit(1)}
           })();
           FCM_EOF
-          node send.js
+          FCM_TEST=$TEST node send.js
