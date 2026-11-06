@@ -6,6 +6,7 @@ on:
     paths: ['.github/workflows/apk-build.yml']
 permissions:
   contents: write
+  issues: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,7 +24,7 @@ jobs:
           SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           if [ -x "$SDKM" ]; then
             yes | "$SDKM" --licenses >/dev/null 2>&1 || true
-            "$SDKM" 'platforms;android-34' 'build-tools;34.0.0' >/dev/null 2>&1 || true
+            "$SDKM" 'platforms;android-34' 'platforms;android-35' 'build-tools;34.0.0' 'build-tools;35.0.0' >/dev/null 2>&1 || true
           else
             echo 'sdkmanager مش موجود في المسار المتوقع — هستخدم SDK الجاهز على الـ runner'
           fi
@@ -79,22 +80,21 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -o pipefail
           cd app/android && chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon 2>&1 | tail -300 > /tmp/gradle.log
+          ./gradlew assembleDebug --no-daemon 2>&1 | tail -400 > /tmp/gradle.log
           EXIT=${PIPESTATUS[0]}
-          cat /tmp/gradle.log
           if [ "$EXIT" != "0" ]; then
-            mkdir -p /tmp/gl && cp /tmp/gradle.log /tmp/gl/
-            cd /tmp/gl
-            git init -q -b logs
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -qm "build log [skip ci]"
-            git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" HEAD:build-logs || true
-            echo "🩺 اللوج اتنشر على فرع build-logs"
+            echo "gradle exit=$EXIT bytes=$(wc -c < /tmp/gradle.log)"
+            cat /tmp/gradle.log
+            printf 'exit code: %s\n```\n' "$EXIT" > /tmp/body.txt
+            head -c 55000 /tmp/gradle.log >> /tmp/body.txt
+            printf '\n```\n' >> /tmp/body.txt
+            jq -Rs '{title: ("🩺 Gradle build log (run " + env.GITHUB_RUN_ID + ")"), body: .}' /tmp/body.txt > /tmp/payload.json
+            curl -sS -o /tmp/issue-resp.json -w 'ISSUE_HTTP=%{http_code}' -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/issues" -d @/tmp/payload.json
+            grep -q '"number"' /tmp/issue-resp.json && echo 'LOG_ISSUE_PUBLISHED' || echo 'LOG_ISSUE_FAILED'
             exit 1
           fi
 
