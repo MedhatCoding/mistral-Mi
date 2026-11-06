@@ -41,6 +41,18 @@
   .tab:hover{color:var(--text);background:transparent}
   .tab.active{background:transparent;color:var(--accent2);font-weight:600}
   .tab.active .ico{filter:drop-shadow(0 0 7px #22d3a599)}
+  .tab .ico .ic,.fab-bot .ic{display:inline-block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  nav .tab.center{margin-top:-20px;background:linear-gradient(135deg,#2f6bd8,#22d3a5);border:2px solid #0d1730;box-shadow:0 10px 26px #4f8cff66;border-radius:16px;color:#fff;font-weight:700;flex:1.15}
+  nav .tab.center .ico{filter:none}
+  nav .tab.center.active{color:#fff}
+  .avx{position:relative;width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;font-size:10px;font-weight:800;flex:none;vertical-align:middle}
+  .avx img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}
+  .avcell{display:inline-flex;align-items:center;margin-inline-end:7px;vertical-align:middle}
+  .pfwin{border-color:rgba(46,204,143,.45)!important;animation:pfg 2.4s ease-in-out infinite}
+  .pflose{border-color:rgba(255,92,114,.45)!important;animation:pfg2 2.8s ease-in-out infinite}
+  @keyframes pfg{50%{box-shadow:0 0 24px rgba(46,204,143,.32),0 0 0 1px rgba(46,204,143,.4) inset}}
+  @keyframes pfg2{50%{box-shadow:0 0 24px rgba(255,92,114,.3),0 0 0 1px rgba(255,92,114,.4) inset}}
+  .fab-bot{position:fixed;bottom:86px;inset-inline-end:14px;z-index:69;width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,#6d3fd4,#9d7bff);border:1px solid #9d7bff88;color:#fff;cursor:pointer;box-shadow:0 8px 22px rgba(157,123,255,.4);display:flex;align-items:center;justify-content:center}
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px}
   .card h3{font-size:16px;margin-bottom:10px}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -258,6 +270,7 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute"><symbol id="i-market" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V13l4-3v3l4-3v4l6-4v11"/></symbol><symbol id="i-bag" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/><path d="M3 13h18M12 11v5"/></symbol><symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v5M21 7h-5"/></symbol><symbol id="i-trade" viewBox="0 0 24 24"><path d="M5 3v18M3 5h4M3 19h4"/><path d="M7 8h6l-2 3 2 3H7"/><rect x="15" y="4" width="3" height="10" rx="1"/><rect x="19" y="9" width="3" height="10" rx="1"/></symbol><symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1A1.7 1.7 0 0 0 10 3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol><symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4M8 4h8"/><circle cx="9" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M9.5 16.5h5"/></symbol></svg>
 <div class="wrap">
   <header>
     <div class="logo"><svg viewBox="0 0 50 50" width="100%" height="100%" style="display:block"><rect x="0" y="0" width="50" height="50" rx="11" fill="#1a1a1a"/><g fill="#ffffff"><rect x="12.14" y="12.14" width="5.14" height="5.14"/><rect x="32.71" y="12.14" width="5.15" height="5.14"/><rect x="12.14" y="17.28" width="10.29" height="5.14"/><rect x="27.57" y="17.28" width="10.29" height="5.14"/><rect x="12.14" y="22.43" width="25.72" height="5.14"/><rect x="12.14" y="27.57" width="5.14" height="5.14"/><rect x="22.43" y="27.57" width="5.14" height="5.14"/><rect x="32.71" y="27.57" width="5.15" height="5.14"/><rect x="7.00" y="32.71" width="15.43" height="5.14"/><rect x="27.57" y="32.71" width="15.43" height="5.14"/></g></svg></div>
@@ -273,22 +286,24 @@
   </header>
 
   <nav>
-    <button class="tab active" data-tab="market"><span class="ico">🏠</span><span>السوق</span></button>
-    <button class="tab" data-tab="stocks"><span class="ico">🔎</span><span>الأسهم</span></button>
-    <button class="tab" data-tab="sharia"><span class="ico">☪️</span><span>الشريعة</span></button>
-    <button class="tab" data-tab="portfolio"><span class="ico">💼</span><span>محفظتي</span></button>
-    <button class="tab" data-tab="picks"><span class="ico">🌟</span><span>توصيات</span></button>
-    <button class="tab" data-tab="settings"><span class="ico">⚙️</span><span>الإعدادات</span></button>
+    <button class="tab" data-tab="market"><span class="ico"><svg class="ic"><use href="#i-market"/></svg></span><span>السوق</span></button>
+    <button class="tab" data-tab="portfolio"><span class="ico"><svg class="ic"><use href="#i-bag"/></svg></span><span>محفظتي</span></button>
+    <button class="tab center active" data-tab="picks"><span class="ico"><svg class="ic"><use href="#i-trend"/></svg></span><span>التوصيات</span></button>
+    <button class="tab" data-tab="paper"><span class="ico"><svg class="ic"><use href="#i-trade"/></svg></span><span>المتداول</span></button>
+    <button class="tab" data-tab="settings"><span class="ico"><svg class="ic"><use href="#i-gear"/></svg></span><span>المزيد</span></button>
   </nav>
+  <button class="fab-bot" onclick="try{switchTab('picks')}catch(e){};setTimeout(function(){var b=document.getElementById('btn-deep');if(b)b.scrollIntoView({behavior:'smooth',block:'center'})},60)" title="الذكاء الاصطناعي — التعميق الشامل"><svg class="ic"><use href="#i-bot"/></svg></button>
 
   <!-- ============ السوق ============ -->
-  <section id="tab-market">
+  <section id="tab-market" class="hide">
     <div id="offline-banner" class="warn-box hide" style="margin-bottom:14px">
       ⚠️ <b>تعذر جلب الأسعار المباشرة الآن.</b> المعروض لقطة احتياطية من آخر إغلاق متاح.
       لو أنت داخل نافذة معاينة فهي <b>تحجب الإنترنت</b> — افتح التطبيق من رابط GitHub Pages أو كملف محلي لتعمل الأسعار الحقيقية تلقائيًا (بدون أي مفتاح).
       يمكنك أيضًا تشخيص المصادر من <b>الإعدادات ← 🩺 تشخيص مصادر الأسعار</b>.
     </div>
     <div class="grid3" id="idx-cards"></div>
+    <div class="row" style="margin:14px 0 0"><button class="btn mini" onclick="switchTab('stocks')">🔎 كل الأسهم</button><button class="btn mini" onclick="switchTab('sharia')">☪️ قائمة الشريعة</button></div>
+    <div id="gold-card" style="margin-top:14px"></div>
     <div class="card" id="egx30-chart-wrap">
       <div class="flex-between">
         <h3>📈 أداء مؤشر EGX30 — آخر ١٨٠ جلسة</h3>
@@ -343,6 +358,7 @@
 
   <!-- ============ الأسهم ============ -->
   <section id="tab-stocks" class="hide">
+    <div class="row" style="margin-bottom:10px"><button class="btn mini" onclick="switchTab('market')">← رجوع للسوق</button></div>
     <div class="card">
       <div class="row">
         <input class="search" id="stock-search" placeholder="🔍 ابحث بالاسم أو الرمز..." />
@@ -369,6 +385,7 @@
 
   <!-- ============ الشريعة ============ -->
   <section id="tab-sharia" class="hide">
+    <div class="row" style="margin-bottom:10px"><button class="btn mini" onclick="switchTab('market')">← رجوع للسوق</button></div>
     <div class="warn-box" style="margin-bottom:14px">
       🕌 <b>قسم الشريعة — مستويان:</b> (١) <b>مكونات مؤشر EGX33 الرسمي</b> بعد مراجعة سبتمبر ٢٠٢٦ — ومنها إضافات جديدة: محاصيل IFAP · عبور لاند OLFI · مدينة مصر MASR. (٢) <b>أسهم متوافقة مع الشريعة خارج المؤشر</b>: أبو قير · السويدي · موبكو · فوري · القاهرة للدواجن · كيما · إعمار مصر · مدينة نصر وغيرها — مصنفة «متوافق» على EGXTRA بمنهجية S&amp;P DJI/AAOIFI.
       نسب التطهير تقديرية من أحدث القوائم المالية المتاحة، <b>تحقق دائمًا من صفحة المؤشر الرسمية قبل اتخاذ قرار</b>:
@@ -479,7 +496,7 @@
   </section>
 
   <!-- ============ توصيات اليوم ============ -->
-  <section id="tab-picks" class="hide">
+  <section id="tab-picks">
     <div class="card">
       <div class="flex-between">
         <h3>🌟 الماسح الذكي — فرص اليوم</h3>
@@ -493,8 +510,6 @@
       <div class="bar hide" id="scan-bar-wrap" style="margin:10px 0"><div id="scan-bar" style="width:0%"></div></div>
       <div class="grid2" id="picks-grid"></div>
             <div id="egx33-card" style="margin-top:14px"></div>
-      <div id="gold-card" style="margin-top:14px"></div>
-      <div id="serverbot-card" style="margin-top:14px"></div>
       <div id="picks-ai" style="margin-top:12px"></div>
       <details id="adv-tools" style="margin-top:12px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 14px">
         <summary style="cursor:pointer;color:var(--muted);font-size:13px">🧪 أدوات متقدمة للمحترفين (بتشتغل أوتوماتيك في الخلفية — مفتوح هنا للفحص بس): شهادة المحرك · سجل التوصيات · محرك ML · LightGBM</summary>
@@ -509,7 +524,11 @@
   </section>
 
   <!-- ============ الإعدادات ============ -->
-  <section id="tab-settings" class="hide">
+  <section id="tab-paper" class="hide">
+      <div id="serverbot-card"></div>
+    </section>
+
+    <section id="tab-settings" class="hide">
     <div class="card">
       <h3>🤖 ربط نموذج ذكاء اصطناعي حقيقي (اختياري)</h3>
       <p class="small muted" style="line-height:1.8;margin-bottom:12px">اربط أي مزوّد متوافق مع OpenAI API — ليقرأ النموذج مؤشراتك الفعلية ويكتب تحليلًا سردًا احترافيًا. المفتاح يُخزَّن في متصفحك فقط.</p>
@@ -1168,18 +1187,21 @@ async function renderMarket(force=false){
 }
 
 /* ═════════════════════════ 8) واجهة الأسهم ═════════════════════════ */
+const LOGO_DOM={COMI:"cibeg.com",ORHD:"orascom.com",HRHO:"efghermes.com",SWDY:"elsewedy.com",ORAS:"orascomconstruction.com"};
+const AVCOLS=[["#2f6bd8","#4f8cff"],["#6d3fd4","#9d7bff"],["#169773","#22d3a5"],["#b8860b","#d4a017"],["#c0392b","#7b241c"],["#2e8b57","#1b5e3f"],["#e67e22","#a04000"],["#2980b9","#1a5276"]];
+function avHTML(t){t=(t||"?").toString();var d=LOGO_DOM[t];var c=AVCOLS[(t.charCodeAt(0)+(t.length>1?t.charCodeAt(1):0))%AVCOLS.length];return '<span class="avx" style="background:linear-gradient(135deg,'+c[0]+','+c[1]+')">'+(d?'<img src="https://www.google.com/s2/favicons?sz=64&domain='+d+'" loading="lazy" alt="" onerror="this.remove()">':'')+'<b>'+t+'</b></span>'}
 function stockRow(d){
   const st=BYSYM[d.sym];const v=d.verdict;
   const bcls=v.sc>=1.5?"b-buy":v.sc<=-1.5?"b-sell":"b-hold";
   return `<tr class="click" onclick="openStock('${d.sym}')">
-    <td><b>${st?.n||d.name||d.sym}</b></td><td class="sect-tag">${d.sym}</td><td class="sect-tag">${st?.s||""}</td>
+    <td><span class="avcell">${avHTML(d.sym)}</span><b>${st?.n||d.name||d.sym}</b></td><td class="sect-tag">${d.sym}</td><td class="sect-tag">${st?.s||""}</td>
     <td class="num">${NF(d.price)}</td><td class="num ${d.chg>=0?"up":"down"}">${PCT(d.chg)}</td>
     <td><span class="badge ${bcls}">${v.em} ${v.rec}</span></td>
     <td>${SHARIA.includes(d.sym)?'<span class="badge b-sharia">☪️ شريعة</span>':""}</td></tr>`;
 }
 function snapshotRow(st){
   return `<tr class="click" onclick="openStock('${st.t}')">
-    <td><b>${st.n}</b></td><td class="sect-tag">${st.t}</td><td class="sect-tag">${st.s}</td>
+    <td><span class="avcell">${avHTML(st.t)}</span><b>${st.n}</b></td><td class="sect-tag">${st.t}</td><td class="sect-tag">${st.s}</td>
     <td class="num muted">${st.p!=null?NF(st.p):"—"}</td><td class="num muted">—</td>
     <td><span class="badge b-neu">اضغط للتحديث المباشر</span></td>
     <td>${SHARIA.includes(st.t)?'<span class="badge b-sharia">☪️ شريعة</span>':""}</td></tr>`;
@@ -1331,7 +1353,7 @@ async function renderPortfolio(){
       const mv=h.qty*c.price,pl=mv-h.qty*h.avg,plP=(c.price-h.avg)/h.avg*100;
       rows+=`<tr><td><b>${st?.n||h.t}</b> <span class="sect-tag">${h.t}</span></td><td class="num">${NF(h.qty)}</td><td class="num">${NF(h.avg)}</td><td class="num">${NF(c.price)}</td><td class="num ${pl>=0?"up":"down"}">${NF(pl)}</td><td class="num ${pl>=0?"up":"down"}">${PCT(plP)}</td><td>${SHARIA.includes(h.t)?'<span class="badge b-sharia">☪️</span>':""}</td><td><button class="btn mini danger" onclick="delHolding('${h.t}')">حذف</button></td></tr>`;
       const hv=holdingsVerdict(h,c);
-      aiCards.push(`<div class="card" style="background:var(--card2)"><div class="row" style="gap:10px"><b>${st?.n||h.t}</b><span class="sect-tag">${h.t}</span><span class="badge ${hv.plPct>=0?"b-buy":"b-sell"}">${hv.plPct>=0?"ربح":"خسارة"} ${PCT(Math.abs(hv.plPct))}</span><span style="margin-inline-start:auto"><span class="rec-badge ${hv.cls}" style="font-size:14px;padding:7px 12px">${hv.em} ${hv.rec}</span></span></div><ul class="reasons small">${hv.reasons.map(x=>`<li>${x}</li>`).join("")}</ul></div>`);
+      aiCards.push(`<div class="card ${hv.plPct>=0?"pfwin":"pflose"}" style="background:var(--card2)"><div class="row" style="gap:10px">${avHTML(h.t)}<b>${st?.n||h.t}</b><span class="sect-tag">${h.t}</span><span class="badge ${hv.plPct>=0?"b-buy":"b-sell"}">${hv.plPct>=0?"ربح":"خسارة"} ${PCT(Math.abs(hv.plPct))}</span><span style="margin-inline-start:auto"><span class="rec-badge ${hv.cls}" style="font-size:14px;padding:7px 12px">${hv.em} ${hv.rec}</span></span></div><ul class="reasons small">${hv.reasons.map(x=>`<li>${x}</li>`).join("")}</ul></div>`);
     }else{
       rows+=`<tr><td><b>${st?.n||h.t}</b> <span class="sect-tag">${h.t}</span></td><td class="num">${NF(h.qty)}</td><td class="num">${NF(h.avg)}</td><td class="num muted">...</td><td colspan="2" class="muted small">جارٍ جلب السعر</td><td></td><td><button class="btn mini danger" onclick="delHolding('${h.t}')">حذف</button></td></tr>`;
     }
@@ -1725,7 +1747,7 @@ function computeETAs(p){
 function renderPicks(p=PICKS){
   if(!p||(!p.buys&&!p.sells)){$("picks-grid").innerHTML='<div class="empty"><span class="spin"></span> جارٍ فحص السوق تلقائيًا لتوليد توصيات اليوم — من غير أي زر</div>';return}
   const card=(x,isBuy)=>`<div class="card" style="background:var(--card2)">
-    <div class="row" style="gap:10px"><b style="font-size:17px">${x.n||x.sym}</b><span class="sect-tag">${x.sym}</span>${SHARIA.includes(x.sym)?'<span class="badge b-sharia">☪️ شريعة</span>':""}<span class="badge ${isBuy?"b-buy":"b-sell"}">${x.chg>=0?"+":""}${x.chg.toFixed(2)}%</span><span style="margin-inline-start:auto" class="stars">${"★".repeat(x.v.stars)}${"☆".repeat(5-x.v.stars)}</span></div>
+    <div class="row" style="gap:10px">${avHTML(x.sym)}<b style="font-size:17px">${x.n||x.sym}</b><span class="sect-tag">${x.sym}</span>${SHARIA.includes(x.sym)?'<span class="badge b-sharia">☪️ شريعة</span>':""}<span class="badge ${isBuy?"b-buy":"b-sell"}">${x.chg>=0?"+":""}${x.chg.toFixed(2)}%</span><span style="margin-inline-start:auto" class="stars">${"★".repeat(x.v.stars)}${"☆".repeat(5-x.v.stars)}</span></div>
     <div class="row" style="gap:8px;margin:8px 0"><span class="rec-badge ${x.v.cls}" style="font-size:14px;padding:7px 12px">${x.v.em} ${x.v.rec}</span><span class="small muted">ثقة ${x.v.conf}%</span><span class="small muted">السعر ${NF(x.price)}</span>${isBuy&&x.ml!=null?'<span class="badge '+(x.ml>=0.55?"b-buy":x.ml<=0.45?"b-sell":"b-neu")+'" title="احتمال تفوق السهم على أقرانه خلال ٤ أسابيع حسب نموذجي ML — إشارة مؤيدة فقط مش قرار">🧠 ML '+(x.ml*100).toFixed(0)+'%</span>':""}${x.v.risk?'<span class="badge b-hold" title="تصنيف المخاطرة من المدى اليومي الحقيقي (ATR) نسبة للسعر — الوقف والهدف متحركين مع تقلب السهم">🛡️ مخاطرة '+x.v.risk+'</span>':""}${isBuy&&REV[x.sym]?'<span class="badge '+(REV[x.sym].st==="ok"?"b-buy":REV[x.sym].st==="warn"?"b-hold":"b-sell")+'" title="'+(REV[x.sym].msgs||[]).join(" — ")+'">'+(REV[x.sym].st==="ok"?"✅ اتمراجعت: لسه قايمة":REV[x.sym].st==="warn"?"⚠️ الصورة اتغيرت":"❌ اتلغت")+'</span>':""}</div>
     <ul class="reasons small">${x.v.rs.filter(r=>r[0]!=="ℹ️").slice(0,3).map(r=>`<li>${r[0]} ${r[1]}</li>`).join("")}</ul>
     ${REV[x.sym]&&REV[x.sym].st!=="ok"&&(REV[x.sym].msgs||[]).length?'<ul class="reasons small" style="margin-top:6px;border:1px solid var(--border2);border-radius:10px;padding:6px 10px;background:rgba(255,180,84,.06)">'+REV[x.sym].msgs.map(m=>`<li>⚠️ ${m}</li>`).join("")+'</ul>':""}
@@ -3613,8 +3635,8 @@ function setupAutoRefresh(){
   const s=CFG.prefs.refresh||0;
   if(s>0)REFRESH_TIMER=setInterval(()=>{if(!$("tab-market").classList.contains("hide"))renderMarket(true)},s*1000);
 }
-const TABS=["market","stocks","sharia","portfolio","picks","settings","stock"];
-let ACTIVE="market";
+const TABS=["market","stocks","sharia","portfolio","picks","settings","stock","paper"];
+let ACTIVE="picks";
 function switchTab(name){
   ACTIVE=name;
   TABS.forEach(t=>$("tab-"+t).classList.toggle("hide",t!==name));
@@ -3634,6 +3656,7 @@ function switchTab(name){
   if(name==="picks")renderRecLog();
   if(name==="picks")renderEngineBT();
   if(name==="settings")loadSettings();
+  if(name==="paper")serverBotRender();
   window.scrollTo({top:0});
 }
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
@@ -4500,6 +4523,7 @@ async function serverBotRender(){
   }catch(e){try{box.innerHTML="";}catch(z){}}
 }
 function boot(){
+  try{switchTab("picks")}catch(e){}
   egx33Render();
   setInterval(egx33Render,20000);
   goldRender(false);
@@ -4514,7 +4538,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.90";
+  var APP_VER="3.91";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
