@@ -4385,11 +4385,14 @@ async function goldRender(manual){
     var gArr=[];
     if(j){
       var gk=j["XAUUSD=X"];
-      if(gk&&Array.isArray(gk.timestamp)&&Array.isArray(gk.close)){
-        for(var i=0;i<gk.timestamp.length;i++){
-          var c=+gk.close[i];if(!(c>0))continue;
+      if(gk&&Array.isArray(gk.close)){
+        var cl0=gk.close.map(function(x){return +x}).filter(function(x){return x>0});
+        var ts0=Array.isArray(gk.timestamp)?gk.timestamp:null;
+        for(var i=0;i<cl0.length;i++){
+          var c=cl0[i];
+          var dstr=ts0?new Date(ts0[i]*1000).toISOString().slice(0,10):new Date(Date.now()-(cl0.length-1-i)*86400000).toISOString().slice(0,10);
           var prev=gArr.length?gArr[gArr.length-1].c:c;
-          gArr.push({d:new Date(gk.timestamp[i]*1000).toISOString().slice(0,10),o:prev,h:Math.max(prev,c),l:Math.min(prev,c),c:c,v:0});
+          gArr.push({d:dstr,o:prev,h:Math.max(prev,c),l:Math.min(prev,c),c:c,v:0});
         }
       }
     }
@@ -4407,6 +4410,7 @@ async function goldRender(manual){
       h+='</ul>';
       /* 🔬 العوامل */
       var dxy=spark("DX-Y.NYB"),tnx=spark("%5ETNX"),vix=spark("%5EVIX"),gld=spark("GLD"),egp=spark("USDEGP=X"),mom=spark("XAUUSD=X");
+      if(!egp&&j&&j["USDEGP=X"]&&Array.isArray(j["USDEGP=X"].close)&&j["USDEGP=X"].close.length){var ec=j["USDEGP=X"].close.map(function(x){return +x}).filter(function(x){return x>0});if(ec.length){egp={last:ec[ec.length-1],chg20:(ec.length>20?(ec[ec.length-1]/ec[ec.length-20]-1)*100:0)};}}
       var facs=[];
       h+='<h4 class="small" style="margin:12px 0 4px">🔬 العوامل المؤثرة في الذهب (تغير ~20 جلسة)</h4><ul class="reasons small">';
       if(dxy){h+='<li>💵 مؤشر الدولار DXY ('+sgn(dxy.chg20)+'): '+(dxy.chg20<0?'⬇️ نزول الدولار = دعم قوي للذهب':'⬆️ صعود الدولار = ضغط على الذهب')+'</li>';facs.push(dxy.chg20<0?1:-1);}
@@ -4510,7 +4514,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.89";
+  var APP_VER="3.90";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
