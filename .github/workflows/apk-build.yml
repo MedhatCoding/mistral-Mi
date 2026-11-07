@@ -64,11 +64,11 @@ jobs:
             const dens=[['mdpi',48,108],['hdpi',72,162],['xhdpi',96,216],['xxhdpi',144,324],['xxxhdpi',192,432]];
             for(const [d,sz,fg] of dens){
               const dir='android/app/src/main/res/mipmap-'+d;
-              const sq=await sharp('../icon.svg',{density:300}).resize(sz,sz).png().toBuffer();
+              const sq=await sharp('../logo.svg',{density:300}).resize(sz,sz).png().toBuffer();
               fs.writeFileSync(dir+'/ic_launcher.png',sq);
               fs.writeFileSync(dir+'/ic_launcher_round.png',sq);
               const inner=Math.round(fg*0.58);
-              const logo=await sharp('../icon.svg',{density:300}).resize(inner,inner).png().toBuffer();
+              const logo=await sharp('../logo.svg',{density:300}).resize(inner,inner).png().toBuffer();
               const fgbuf=await sharp({create:{width:fg,height:fg,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:logo,gravity:'centre'}]).png().toBuffer();
               fs.writeFileSync(dir+'/ic_launcher_foreground.png',fgbuf);
             }
