@@ -92,11 +92,17 @@ jobs:
             printf 'exit code: %s\n```\n' "$EXIT" > /tmp/body.txt
             head -c 55000 /tmp/gradle.log >> /tmp/body.txt
             printf '\n```\n' >> /tmp/body.txt
-            jq -Rs '{title: ("🩺 Gradle build log (run " + env.GITHUB_RUN_ID + ")"), body: .}' /tmp/body.txt > /tmp/payload.json
-            curl -sS -o /tmp/issue-resp.json -w 'ISSUE_HTTP=%{http_code}' -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/issues" -d @/tmp/payload.json
-            grep -q '"number"' /tmp/issue-resp.json && echo 'LOG_ISSUE_PUBLISHED' || echo 'LOG_ISSUE_FAILED'
+            gh issue create --repo "$REPO" --title "🩺 Gradle build log (run $GITHUB_RUN_ID)" --body-file /tmp/body.txt && echo 'LOG_ISSUE_PUBLISHED' || echo 'LOG_ISSUE_FAILED'
             exit 1
           fi
+
+      - name: Upload gradle log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-log
+          path: /tmp/gradle.log
+          retention-days: 7
 
       - uses: actions/upload-artifact@v4
         with:
