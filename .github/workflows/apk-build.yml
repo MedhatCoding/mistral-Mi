@@ -3,7 +3,7 @@ name: Build APK (mistral-Mi)
 on:
   workflow_dispatch:
   push:
-    paths: ['.github/workflows/apk-build.yml']
+    paths: ['.github/workflows/apk-build.yml', 'logo.svg']
 permissions:
   contents: write
   issues: write
