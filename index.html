@@ -292,7 +292,7 @@
     <button class="tab" data-tab="paper"><span class="ico"><svg class="ic"><use href="#i-trade"/></svg></span><span>المتداول</span></button>
     <button class="tab" data-tab="settings"><span class="ico"><svg class="ic"><use href="#i-gear"/></svg></span><span>المزيد</span></button>
   </nav>
-  <button class="fab-bot" onclick="try{switchTab('settings')}catch(e){};setTimeout(function(){var b=document.getElementById('btn-deep');if(b){b.scrollIntoView({behavior:'smooth',block:'center'});b.style.boxShadow='0 0 0 3px #9d7bff';setTimeout(function(){b.style.boxShadow=''},1500)}},80)" title="الذكاء الاصطناعي — التعميق الشامل"><svg class="ic"><use href="#i-bot"/></svg></button>
+  
 
   <!-- ============ السوق ============ -->
   <section id="tab-market" class="hide">
@@ -302,7 +302,7 @@
       يمكنك أيضًا تشخيص المصادر من <b>الإعدادات ← 🩺 تشخيص مصادر الأسعار</b>.
     </div>
     <div class="grid3" id="idx-cards"></div>
-    <div class="row" style="margin:14px 0 0"><button class="btn mini" onclick="switchTab('stocks')">🔎 كل الأسهم</button><button class="btn mini" onclick="switchTab('sharia')">☪️ قائمة الشريعة</button></div>
+    <div class="row" style="margin:14px 0 0"><button class="btn primary" style="flex:1;min-width:180px;padding:15px 18px;font-size:16px;font-weight:700" onclick="switchTab('stocks')">📋 قائمة كل الأسهم</button><button class="btn ok" style="flex:1;min-width:180px;padding:15px 18px;font-size:16px;font-weight:700" onclick="switchTab('sharia')">☪️ الأسهم المتوافقة مع الشريعة</button></div>
     <div id="gold-card" style="margin-top:14px"></div>
     <div class="card" id="egx30-chart-wrap">
       <div class="flex-between">
@@ -4538,7 +4538,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.92";
+  var APP_VER="3.93";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
