@@ -4116,7 +4116,7 @@ init();
         '<div class="small muted" style="margin:8px 0;line-height:1.8">قيمة الصناديق <b>'+NF(fVal)+'</b> ج.م من إجمالي شامل <b>'+NF(combo)+'</b> ج.م · ربح الصناديق <b class="'+(fPl>=0?"up":"down")+'">'+NF(fPl)+'</b> ج.م ('+(fCost?(fPl/fCost*100).toFixed(1):0)+'%)</div>'+
         '<div class="scroll-x"><table><thead><tr><th>الصندوق</th><th>القيمة الحالية</th><th>ربح/خسارة</th><th>من المحفظة</th><th>التقييم</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
         '<p class="small muted" style="margin-top:6px;line-height:1.8">ℹ️ مونت كارلو والبيتا والتقلب واختبار الضغط محسوبة على تاريخ أسعار الأسهم اللحظي — الصناديق مضمونة هنا كقيمة ونسبة وربح ضمن الصورة الكاملة (NAV الصناديق يومي).</p></div>';
-      ["xray-body","holdings-ai","quant-lab"].forEach(function(id){
+      ["xray-body"].forEach(function(id){
         var el=document.getElementById(id);
         if(!el||!el.innerHTML.trim()||el.querySelector(".egx-xray-funds"))return;
         el.insertAdjacentHTML("beforeend",card);
@@ -4538,7 +4538,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.93";
+  var APP_VER="3.94";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
