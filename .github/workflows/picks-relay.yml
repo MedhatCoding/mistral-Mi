@@ -32,42 +32,42 @@ jobs:
           MANSA_API_KEY: ${{ secrets.MANSA_API_KEY }}
         run: |
           set -uo pipefail
-          printf '{"ok":false,"error":"not_run"}\n' > mansa-report.json
+          printf '%s' '{"ok":false,"error":"not_run"}' > mansa-report.json
           if [ -z "$MANSA_API_KEY" ]; then
             echo "⚠️ MANSA_API_KEY مش متظبط — هكمل على live.json الموجود"
-            printf '{"ok":false,"error":"no_key"}\n' > mansa-report.json
+            printf '%s' '{"ok":false,"error":"no_key"}' > mansa-report.json
           else
             curl -sS --retry 2 --max-time 45 -w '%{http_code}' -o /tmp/mansa.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200" > /tmp/mansa.code 2>/tmp/mansa.err || true
             cat > mansa_build.js <<'MANSA_EOF'
-            const fs=require('fs');
-            const code=(fs.readFileSync('/tmp/mansa.code','utf8').trim()||'0');
-            let raw=null;
-            try{raw=JSON.parse(fs.readFileSync('/tmp/mansa.json','utf8'))}catch(e){}
-            const rows=(raw&&raw.data&&Array.isArray(raw.data))?raw.data:((raw&&Array.isArray(raw))?raw:null);
-            const pick=(o,keys)=>{for(const k of keys){if(o[k]!=null)return o[k]}return null};
-            const SHARIA=["ACGC","ETEL","OCDI","PHDC","SKPC","TMGH","ETRS","IFAP","LCSW","MASR","MPCO","ORWE","SAUD","MCQE","AMOC","EGAS","FAIT","ATQA","CIRA","EGAL","FAITA","JUFO","ORHD","ADIB","ARCC","ORAS","EFID","OLFI","MTIE","RACC","ICFC","ISPH","RMDA","EFIH","GOUR","CLHO","ABUK","SWDY","MFPC","FWRY","POUL","EGCH","EGTS","ELKA","EMFD","TAQA","MNHD"];
-            const rep={ok:false,error:null,http:code,total:0,covered:[],missing:[],sample:null};
-            if(!rows){rep.error=(raw?(raw.message||raw.error||'empty'):'no_json');}
-            else{
-              rep.total=rows.length;
-              rep.sample=rows.slice(0,2);
-              const map={};
-              rows.forEach(r=>{const t=String(pick(r,['ticker','symbol','canonical_symbol'])||'').toUpperCase();if(t)map[t]=r;});
-              SHARIA.forEach(t=>{if(map[t])rep.covered.push(t);else rep.missing.push(t);});
-              rep.ok=rep.covered.length===SHARIA.length;
-              const quotes=rows.map(r=>{
-                const t=String(pick(r,['ticker','symbol','canonical_symbol'])||'').toUpperCase();
-                return {ticker:t,price:pick(r,['close','price','last_price','current_price']),change_percent:pick(r,['change_percentage','change_pct','changePercent']),volume:pick(r,['volume','vol'])};
-              }).filter(q=>q.ticker&&q.price>0);
-              if(quotes.length){fs.writeFileSync('live.json',JSON.stringify({t:Date.now(),src:'mansa',quotes:quotes}));}
-              console.log('✅ Mansa: '+quotes.length+' سهم EGX — تغطية الشريعة '+rep.covered.length+'/'+SHARIA.length+(rep.ok?' ✅':' ⚠️ ناقص'));
-            }
-            fs.writeFileSync('mansa-report.json',JSON.stringify(rep));
-            if(!rep.ok){console.log('⚠️ تقرير Mansa: http='+rep.http+' total='+rep.total+' error='+rep.error+' missing='+rep.missing.join(','));}
-            MANSA_EOF
+          const fs=require('fs');
+          const code=(fs.readFileSync('/tmp/mansa.code','utf8').trim()||'0');
+          let raw=null;
+          try{raw=JSON.parse(fs.readFileSync('/tmp/mansa.json','utf8'))}catch(e){}
+          const rows=(raw&&raw.data&&Array.isArray(raw.data))?raw.data:((raw&&Array.isArray(raw))?raw:null);
+          const pick=(o,keys)=>{for(const k of keys){if(o[k]!=null)return o[k]}return null};
+          const SHARIA=["ACGC","ETEL","OCDI","PHDC","SKPC","TMGH","ETRS","IFAP","LCSW","MASR","MPCO","ORWE","SAUD","MCQE","AMOC","EGAS","FAIT","ATQA","CIRA","EGAL","FAITA","JUFO","ORHD","ADIB","ARCC","ORAS","EFID","OLFI","MTIE","RACC","ICFC","ISPH","RMDA","EFIH","GOUR","CLHO","ABUK","SWDY","MFPC","FWRY","POUL","EGCH","EGTS","ELKA","EMFD","TAQA","MNHD"];
+          const rep={ok:false,error:null,http:code,total:0,covered:[],missing:[],sample:null};
+          if(!rows){rep.error=(raw?(raw.message||raw.error||'empty'):'no_json');}
+          else{
+            rep.total=rows.length;
+            rep.sample=rows.slice(0,2);
+            const map={};
+            rows.forEach(r=>{const t=String(pick(r,['ticker','symbol','canonical_symbol'])||'').toUpperCase();if(t)map[t]=r;});
+            SHARIA.forEach(t=>{if(map[t])rep.covered.push(t);else rep.missing.push(t);});
+            rep.ok=rep.covered.length===SHARIA.length;
+            const quotes=rows.map(r=>{
+              const t=String(pick(r,['ticker','symbol','canonical_symbol'])||'').toUpperCase();
+              return {ticker:t,price:pick(r,['close','price','last_price','current_price']),change_percent:pick(r,['change_percentage','change_pct','changePercent']),volume:pick(r,['volume','vol'])};
+            }).filter(q=>q.ticker&&q.price>0);
+            if(quotes.length){fs.writeFileSync('live.json',JSON.stringify({t:Date.now(),src:'mansa',quotes:quotes}));}
+            console.log('Mansa: '+quotes.length+' EGX quotes — sharia coverage '+rep.covered.length+'/'+SHARIA.length+(rep.ok?' OK':' MISSING'));
+          }
+          fs.writeFileSync('mansa-report.json',JSON.stringify(rep));
+          if(!rep.ok){console.log('Mansa report: http='+rep.http+' total='+rep.total+' error='+rep.error+' missing='+rep.missing.join(','));}
+          MANSA_EOF
             node mansa_build.js || echo "⚠️ معالجة Mansa فشلت — هكمل على live.json الموجود"
           fi
-        - name: استخراج محرك التحليل من index.html
+      - name: استخراج محرك التحليل من index.html
         shell: bash
         run: |
           set -uo pipefail
