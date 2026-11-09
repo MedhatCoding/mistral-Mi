@@ -38,17 +38,17 @@ jobs:
             printf '%s' '{"ok":false,"error":"no_key"}' > mansa-report.json
           else
             curl -sS --retry 2 --max-time 45 -w '%{http_code}' -o /tmp/mansa.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200" > /tmp/mansa.code 2>/tmp/mansa.err || true
-curl -sS --retry 2 --max-time 45 -w '%{http_code}' -o /tmp/mansa2.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200&offset=200" > /tmp/mansa2.code 2>/tmp/mansa2.err || true
+          curl -sS --retry 2 --max-time 45 -w '%{http_code}' -o /tmp/mansa2.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200&offset=200" > /tmp/mansa2.code 2>/tmp/mansa2.err || true
             cat > mansa_build.js <<'MANSA_EOF'
           const fs=require('fs');
           const code=(fs.readFileSync('/tmp/mansa.code','utf8').trim()||'0');
           let raw=null;
           try{raw=JSON.parse(fs.readFileSync('/tmp/mansa.json','utf8'))}catch(e){}
-let raw2=null;
-try{raw2=JSON.parse(fs.readFileSync('/tmp/mansa2.json','utf8'))}catch(e){}
+          let raw2=null;
+          try{raw2=JSON.parse(fs.readFileSync('/tmp/mansa2.json','utf8'))}catch(e){}
           const rows0=(raw&&raw.data&&Array.isArray(raw.data))?raw.data:((raw&&Array.isArray(raw))?raw:null);
-const rows2=(raw2&&raw2.data&&Array.isArray(raw2.data))?raw2.data:((raw2&&Array.isArray(raw2))?raw2:null);
-const rows=rows0?(rows2?rows0.concat(rows2):rows0):null;
+          const rows2=(raw2&&raw2.data&&Array.isArray(raw2.data))?raw2.data:((raw2&&Array.isArray(raw2))?raw2:null);
+          const rows=rows0?(rows2?rows0.concat(rows2):rows0):null;
           const pick=(o,keys)=>{for(const k of keys){if(o[k]!=null)return o[k]}return null};
           const SHARIA=["ACGC","ETEL","OCDI","PHDC","SKPC","TMGH","ETRS","IFAP","LCSW","MASR","MPCO","ORWE","SAUD","MCQE","AMOC","EGAS","FAIT","ATQA","CIRA","EGAL","FAITA","JUFO","ORHD","ADIB","ARCC","ORAS","EFID","OLFI","MTIE","RACC","ICFC","ISPH","RMDA","EFIH","GOUR","CLHO","ABUK","SWDY","MFPC","FWRY","POUL","EGCH","EGTS","ELKA","EMFD","TAQA","MNHD"];
           const rep={ok:false,error:null,http:code,total:0,covered:[],missing:[],sample:null};
