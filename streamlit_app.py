@@ -9,8 +9,8 @@ import streamlit.components.v1 as components
 from pathlib import Path
 
 st.set_page_config(
-    page_title="عقار — محلل البورصة المصرية بالذكاء الاصطناعي",
-    page_icon="🕌",
+    page_title="mistral-Mi — محلل البورصة المصرية بالذكاء الاصطناعي",
+    page_icon="https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/0a7d4429de176ae958c151cde00a1791776e4873/logo.jpg",
     layout="wide",
 )
 
