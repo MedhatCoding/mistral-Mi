@@ -501,6 +501,7 @@ setTimeout(function(){location.replace("https://mistral-mi.streamlit.app/")},220
 
   <!-- ============ توصيات اليوم ============ -->
   <section id="tab-picks">
+    <div id="intraday-card"></div>
     <div class="card">
       <div class="flex-between">
         <h3>🌟 الماسح الذكي — فرص اليوم</h3>
@@ -510,7 +511,7 @@ setTimeout(function(){location.replace("https://mistral-mi.streamlit.app/")},220
           <span class="small muted" id="scan-status"></span>
         </div>
       </div>
-      <p class="small muted" style="line-height:1.8">التوصيات هنا للأسهم <b>المتوافقة مع الشريعة ☪️ فقط</b> — مفيش أي فرص تانية خالص: يفحص المحرك ٤٧ سهمًا متوافقًا مع الشريعة (مكونات مؤشر EGX33 الرسمية + الأسهم المتوافقة خارج المؤشر) ويقيّم كل سهم على 6 محاور (الاتجاه · الزخم · التقلب · الموقع من المدى · بولنجر) ثم يرتّب أقوى فرص الشراء وأهم التحذيرات — في طلب واحد وسريع. ولو مش عايز أسهم أصلاً، تحت في قسم «صناديق متوافقة مع الشريعة» فرص حلال جاهزة للتتبع.</p>
+      <p class="small muted" style="line-height:1.8">التوصيات هنا للأسهم <b>المتوافقة مع الشريعة ☪️ فقط</b> — مفيش أي فرص تانية خالص: يفحص المحرك الأسهم المتوافقة مع الشريعة (قايمة تلقائية بتتحدث من ١٠ مصادر فحص شرعي + مكونات مؤشر EGX33 الرسمية) ويقيّم كل سهم على 6 محاور (الاتجاه · الزخم · التقلب · الموقع من المدى · بولنجر) ثم يرتّب أقوى فرص الشراء وأهم التحذيرات — في طلب واحد وسريع. ولو مش عايز أسهم أصلاً، تحت في قسم «صناديق متوافقة مع الشريعة» فرص حلال جاهزة للتتبع.</p>
       <div class="bar hide" id="scan-bar-wrap" style="margin:10px 0"><div id="scan-bar" style="width:0%"></div></div>
       <div class="grid2" id="picks-grid"></div>
             <div id="egx33-card" style="margin-top:14px"></div>
@@ -4493,6 +4494,36 @@ async function goldRender(manual){
 window.goldRender=goldRender;
 /* تشغيل: الذهب مرة عند الفتح + تحديث تلقائي كل 15 دقيقة · المؤشر بيتحدث كل 20 ثانية مع وصول بيانات الأسهم */
 /* 🛰️ توصيات السيرفر: الماسح شغال على GitHub Actions كل ٣٠ دقيقة وينشر picks.json — التطبيق بيعرضها أول ما يفتح من غير فحص على الجهاز */
+/* ⚡ مضاربة الجلسة: مرشحين من السيرفر (intraday.json على فرع picks) — زخم جلسة + حجم مضاعف، عالية المخاطرة */
+function intradayRender(){
+  var box=document.getElementById("intraday-card");if(!box)return;
+  try{
+    fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/intraday.json?cb="+Date.now()).then(function(j){
+      if(!j||!j.t){box.innerHTML="";return;}
+      var list=j.list||[];
+      var h='<div class="card" style="border-color:rgba(255,180,84,.4)"><div class="flex-between"><h3>⚡ مضاربة الجلسة — دخول وخروج نفس اليوم</h3><span class="small muted">'+new Date(j.t).toLocaleString("ar-EG")+'</span></div>';
+      h+='<p class="small" style="color:var(--amber);margin:6px 0 10px;line-height:1.7">⚠️ عالية المخاطرة: أسهم شريعة بزخم جلسة قوي وحجم تداول مضاعف. للمتابعة اللحظية فقط — اخرج بالهدف أو بالوقف داخل الجلسة نفسها.</p>';
+      if(!list.length){h+='<p class="small muted">مفيش مرشح مضاربة قوي دلوقتي — الانتظار أحسن من الدخول القسري.</p>';}
+      else{
+        h+='<div class="grid3">';
+        list.forEach(function(x){
+          var rr=((x.target-x.p)/Math.max(x.p-x.stop,0.001)).toFixed(1);
+          h+='<div class="card" style="margin:0;background:var(--card2)"><b>'+x.s+'</b> · '+x.n
+            +'<div class="metrics" style="margin:8px 0">'
+            +'<div class="metric"><div class="lbl">آخر سعر</div><div class="val num">'+x.p+'</div></div>'
+            +'<div class="metric"><div class="lbl">زخم الجلسة</div><div class="val num" style="color:var(--green)">+'+x.mom+'%</div></div>'
+            +'<div class="metric"><div class="lbl">الحجم/المتوسط</div><div class="val num">×'+x.vmul+'</div></div>'
+            +'<div class="metric"><div class="lbl">🎯 هدف</div><div class="val num">'+x.target+'</div></div>'
+            +'<div class="metric"><div class="lbl">🛑 وقف</div><div class="val num" style="color:var(--red)">'+x.stop+'</div></div>'
+            +'</div><span class="small muted">عائد/مخاطرة 1:'+rr+' · فجوة الفتح '+(x.gap>0?"+":"")+x.gap+'% · جلسة '+(x.d||"—")+'</span></div>';
+        });
+        h+='</div>';
+      }
+      h+='<p class="small muted" style="margin-top:10px">🛰️ بتتحدث كل ١٥ دقيقة أثناء الجلسة من Mansa API · مرشحة آليًا بفلتر الشريعة والزخم والحجم · قرار الدخول والخروج مسؤوليتك.</p></div>';
+      box.innerHTML=h;
+    }).catch(function(){try{box.innerHTML="";}catch(z){}});
+  }catch(e){}
+}
 function serverPicksFetch(){
   try{
     fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/picks.json?cb="+Date.now()).then(function(j){
@@ -4536,13 +4567,15 @@ function boot(){
   setInterval(function(){serverBotRender();},5*60*1000);
   serverPicksFetch();
   setInterval(serverPicksFetch,10*60*1000);
+  intradayRender();
+  setInterval(intradayRender,10*60*1000);
 }
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot);}else{boot();}
 })();
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.95";
+  var APP_VER="3.96";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
