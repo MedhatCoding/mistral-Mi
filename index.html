@@ -280,7 +280,7 @@ setTimeout(function(){location.replace("https://mistral-mi.streamlit.app/")},220
     <div class="logo"><svg viewBox="0 0 50 50" width="100%" height="100%" style="display:block"><rect x="0" y="0" width="50" height="50" rx="11" fill="#1a1a1a"/><g fill="#ffffff"><rect x="12.14" y="12.14" width="5.14" height="5.14"/><rect x="32.71" y="12.14" width="5.15" height="5.14"/><rect x="12.14" y="17.28" width="10.29" height="5.14"/><rect x="27.57" y="17.28" width="10.29" height="5.14"/><rect x="12.14" y="22.43" width="25.72" height="5.14"/><rect x="12.14" y="27.57" width="5.14" height="5.14"/><rect x="22.43" y="27.57" width="5.14" height="5.14"/><rect x="32.71" y="27.57" width="5.15" height="5.14"/><rect x="7.00" y="32.71" width="15.43" height="5.14"/><rect x="27.57" y="32.71" width="15.43" height="5.14"/></g></svg></div>
     <div>
       <h1>mistral-Mi — محلل البورصة المصرية بالذكاء الاصطناعي</h1>
-      <div class="sub">EGX · أسعار لحظية أثناء الجلسة (oanor / 🤖 ريليه GitHub) + تحليل فني من Yahoo Finance · توصيات ذكية · فرص الشريعة فقط — EGX33 + متوافق خارج المؤشر · <b>v3.48</b></div>
+      <div class="sub">EGX · أسعار لحظية أثناء الجلسة (🤖 ريليه Mansa API) + تحليل فني من Yahoo Finance · توصيات ذكية · فرص الشريعة فقط — EGX33 + متوافق خارج المؤشر · <b>v3.98</b></div>
     </div>
     <div class="hd-right">
       <span class="pill" id="clock">—</span>
@@ -511,9 +511,9 @@ setTimeout(function(){location.replace("https://mistral-mi.streamlit.app/")},220
           <span class="small muted" id="scan-status"></span>
         </div>
       </div>
-      <p class="small muted" style="line-height:1.8">التوصيات هنا للأسهم <b>المتوافقة مع الشريعة ☪️ فقط</b> — مفيش أي فرص تانية خالص: يفحص المحرك الأسهم المتوافقة مع الشريعة (قايمة تلقائية بتتحدث من ١٠ مصادر فحص شرعي + مكونات مؤشر EGX33 الرسمية) ويقيّم كل سهم على 6 محاور (الاتجاه · الزخم · التقلب · الموقع من المدى · بولنجر) ثم يرتّب أقوى فرص الشراء وأهم التحذيرات — في طلب واحد وسريع. ولو مش عايز أسهم أصلاً، تحت في قسم «صناديق متوافقة مع الشريعة» فرص حلال جاهزة للتتبع.</p>
+      <p class="small muted" style="line-height:1.8">التوصيات هنا للأسهم <b>المتوافقة مع الشريعة ☪️ فقط</b> — مفيش أي فرص تانية خالص: يفحص المحرك الأسهم المتوافقة مع الشريعة (قايمة تلقائية بتتحدث من ١٠ مصادر فحص شرعي + مكونات مؤشر EGX33 الرسمية) ويقيّم كل سهم على 6 محاور (الاتجاه · الزخم · التقلب · الموقع من المدى · بولنجر) ثم يرتّب أقوى فرص الشراء وأهم التحذيرات — في طلب واحد وسريع. في طلب واحد وسريع.</p>
       <div class="bar hide" id="scan-bar-wrap" style="margin:10px 0"><div id="scan-bar" style="width:0%"></div></div>
-      <div class="grid2" id="picks-grid"></div>
+      <div id="picks-grid"></div>
             <div id="egx33-card" style="margin-top:14px"></div>
       <div id="picks-ai" style="margin-top:12px"></div>
       <details id="adv-tools" style="margin-top:12px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 14px">
@@ -523,14 +523,13 @@ setTimeout(function(){location.replace("https://mistral-mi.streamlit.app/")},220
         <div id="ml-card" style="margin-top:12px"></div>
         <div id="lgb-card" style="margin-top:12px"></div>
       </details>
-      <div id="paper-card" style="margin-top:12px"></div>
-      <div id="sharia-funds"></div>
     </div>
   </section>
 
   <!-- ============ الإعدادات ============ -->
   <section id="tab-paper" class="hide">
       <div id="serverbot-card"></div>
+      <div id="paper-card" style="margin-top:12px"></div>
     </section>
 
     <section id="tab-settings" class="hide">
@@ -1764,8 +1763,8 @@ function renderPicks(p=PICKS){
   const stale=p.stale||!fresh;
   const hdr=`<div class="row small" style="gap:10px;align-items:center;margin-bottom:10px">${stale?'<span class="badge b-sell">⚠️ أسعار قديمة</span>':'<span class="badge b-buy">🟢 أسعار مباشرة</span>'}${p.server?'<span class="badge b-buy" title="محسوبة على GitHub Actions كل ٣٠ دقيقة أثناء الجلسة — بتوصل حتى لو النت عندك بطيء">🛰️ من السيرفر</span>':""}${p.regime&&p.regime.regime==="bull"?'<span class="badge b-buy" title="EGX30 فوق متوسطه 200 جلسة">🐂 نظام سوق صاعد — المؤشر فوق متوسطه '+Math.abs(p.regime.dist).toFixed(1)+'٪</span>':p.regime?'<span class="badge b-sell" title="EGX30 تحت متوسطه 200 جلسة — التوصيات الضعيفة مستبعدة">🐻 نظام سوق هابط — المؤشر '+Math.abs(p.regime.dist).toFixed(1)+'٪ تحت متوسط ٢٠٠ جلسة · عتبة الشراء مرفوعة</span>':""}<span class="muted">آخر تحديث أسعار: ${p.time?new Date(p.time).toLocaleString("ar-EG"):"—"}${ageMin!=null?" (قبل "+ageMin+" دقيقة)":""}</span>${p.buys&&p.buys.length?'<span class="small muted">🔁 بتتراجع تلقائيًا كل ٢٠ دقيقة أثناء الجلسة</span>':""}</div>${(p.noliq>0||p.noliq2>0)?'<div class="small muted" style="margin:-4px 0 10px">🚫 استُبعد '+((p.noliq||0)+(p.noliq2||0))+' سهم قليل السيولة (أقل من مليون ج.م تداول يومي متوسط) من فرص الشراء'+(p.noliq2>0?' — منهم '+p.noliq2+' بعد فحص الحجم الحقيقي للفرص النهائية':'')+'.</div>':""}`;
   $("picks-grid").innerHTML=hdr+`
-    <div><h3 class="small" style="margin-bottom:8px">🟢 أقوى فرص الشراء</h3>${p.buys.map(x=>card(x,true)).join("")||'<div class="empty">لا فرص واضحة الآن</div>'}</div>
-    <div><h3 class="small" style="margin-bottom:8px">🔴 تحذيرات / فرص بيع</h3>${(p.sells||[]).map(x=>card(x,false)).join("")||'<div class="empty">لا تحذيرات قوية الآن</div>'}</div>`;
+    <div class="card" style="margin-top:12px"><h3>🟢 فرص الشراء</h3>${p.buys.map(x=>card(x,true)).join("")||'<div class="empty">لا فرص واضحة الآن</div>'}</div>
+    <div class="card" style="margin-top:14px"><h3>🔴 توصيات البيع والتحذيرات</h3>${(p.sells||[]).map(x=>card(x,false)).join("")||'<div class="empty">لا تحذيرات قوية الآن</div>'}</div>`;
   computeETAs(p);
 }
 
@@ -4575,7 +4574,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.97";
+  var APP_VER="3.98";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
