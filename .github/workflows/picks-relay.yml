@@ -86,7 +86,7 @@ jobs:
           awk '/^const S = \[/{f=1} f{print} f&&/\]\.map\(a=>/{f=0}' index.html > names.js
           echo 'const NAMES=Object.fromEntries(S.map(x=>[x.t,x.n]));' >> names.js
           grep -E "^const SHARIA_(IDX|EXTRA) ?=" index.html > sharia.js
-          echo 'const SHARIA=[...SHARIA_IDX,...SHARIA_EXTRA];' >> sharia.js
+          echo 'var SHARIA=[...SHARIA_IDX,...SHARIA_EXTRA];' >> sharia.js
           if ! grep -q "function analyze" engine.js; then echo "❌ استخراج المحرك فشل"; exit 1; fi
           echo "✅ المحرك اتعمل ($(wc -l < engine.js) سطر)"
       - name: الشريعة التلقائية (10 مصادر فحص)
@@ -105,7 +105,7 @@ jobs:
           }catch(e){auto=[];}
           if(auto.length>=30){
             console.log('Sharia auto: '+auto.length+' compliant — '+sdate);
-            fs.writeFileSync('sharia_auto.js','const SHARIA='+JSON.stringify(auto)+';');
+            fs.writeFileSync('sharia_auto.js','SHARIA='+JSON.stringify(auto)+';');
           }else{
             console.log('Sharia auto FAILED — fallback to static 47');
             fs.writeFileSync('sharia_auto.js','');
@@ -121,7 +121,7 @@ jobs:
           const live=readJSON('live.json',null),hist=readJSON('hist.json',null);
           if(!hist||!hist.stocks){console.log('❌ hist.json مش موجودة');process.exit(1)}
           const Q={};
-          if(live&&live.t&&Array.isArray(live.quotes))live.quotes.forEach(function(q){if(q&&q.ticker&&q.price!=null)Q[q.ticker]={price:q.price,chg:(q.change_percent!=null?q.change_percent:0),vol:(q.volume!=null?q.volume:null)}});
+          if(live&&live.t&&Array.isArray(live.quotes))live.quotes.forEach(function(q){if(q&&q.ticker&&q.price!=null)Q[q.ticker]={price:q.price,chg:(q.change_percent!=null?q.change_percent:0),vol:(q.volume!=null?q.volume:null),open:(q.open!=null?q.open:null),high:(q.high!=null?q.high:null),low:(q.low!=null?q.low:null),td:(q.trade_date||null)}});
           const res=[];
           Object.keys(hist.stocks).forEach(function(sym){
             const raw=hist.stocks[sym]||[];
@@ -191,7 +191,7 @@ jobs:
               if(q.price*(q.volume||0)<5000000)return;
               const stop=Math.min((q.low>0?q.low:q.price*0.98),q.price*0.985);
               const target=q.price+(q.price-stop)*1.6;
-              intraday.push({s:r.sym,n:r.name,p:q.price,o:q.open,h:q.high,l:q.low,chg:q.change_percent,gap:Math.round(gap*100)/100,mom:Math.round(mom*100)/100,vmul:Math.round(vmul*10)/10,stop:Math.round(stop*100)/100,target:Math.round(target*100)/100,d:(q.trade_date||null),sc:Math.round((mom*2+Math.min(vmul,4))*10)/10});
+              intraday.push({s:r.sym,n:r.name,p:q.price,o:q.open,h:q.high,l:q.low,chg:q.change_percent,gap:Math.round(gap*100)/100,mom:Math.round(mom*100)/100,vmul:Math.round(vmul*10)/10,stop:Math.round(stop*100)/100,target:Math.round(target*100)/100,d:(q.td||null),sc:Math.round((mom*2+Math.min(vmul,4))*10)/10});
             }catch(e){}
           });
           intraday.sort(function(a,b){return b.sc-a.sc});
