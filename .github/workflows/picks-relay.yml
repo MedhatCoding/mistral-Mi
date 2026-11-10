@@ -104,8 +104,8 @@ jobs:
             if(j&&j.rows){auto=Object.keys(j.rows).filter(function(t){return /-1$/.test((j.rows[t]||{}).v||'')});}
           }catch(e){auto=[];}
           if(auto.length>=30){
-            console.log('Sharia auto: '+auto.length+' compliant — '+sdate);
-            fs.writeFileSync('sharia_auto.js','SHARIA='+JSON.stringify(auto)+';');
+            console.log('Sharia auto: '+auto.length+' من المصادر + مكونات EGX33 دايمًا — '+sdate);
+            fs.writeFileSync('sharia_auto.js','SHARIA=Array.from(new Set([].concat('+JSON.stringify(auto)+',SHARIA_IDX)));');
           }else{
             console.log('Sharia auto FAILED — fallback to static 47');
             fs.writeFileSync('sharia_auto.js','');
