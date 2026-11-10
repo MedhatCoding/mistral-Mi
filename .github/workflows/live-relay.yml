@@ -1,4 +1,4 @@
-# 🤖 Live Relay v2.2 — Mansa أساسي + إصلاح الافتتاح الناقص حسابيًا + فحص مؤشر EGX30 من Mansa + oanor مكمل
+# 🤖 Live Relay v2.3 — Mansa أساسي + إصلاح الافتتاح الناقص حسابيًا + فحص مؤشر EGX30 من Mansa + oanor مكمل
 name: 🤖 Live Relay — أسعار EGX اللحظية
 on:
   push:
@@ -53,91 +53,101 @@ jobs:
           console.log("✅ Mansa: "+quotes.length+" سهم (من "+rows.length+") + اتحسب افتتاح "+dOpen+" سهم → live.json");
           MANSA_EOF
           node mansa_live.js
-          # 🔍 فحص: هل Mansa عنده نقطة نهاية للمؤشرات؟ وهل limit=250 يرجّع كل الأسهم في طلب واحد؟
-          rm -f /tmp/midx.json /tmp/mprobe-*.json /tmp/mprobe250.json
-          for EP in indexes indices index; do
-            curl -sS --max-time 20 -H "Authorization: Bearer $MANSA_API_KEY" -o /tmp/mprobe-$EP.json "https://mansaapi.com/api/v1/markets/exchanges/EGX/$EP?limit=50" || true
-            echo "== probe $EP: $(head -c 200 /tmp/mprobe-$EP.json 2>/dev/null)"
-          done
-          curl -sS --max-time 45 -H "Authorization: Bearer $MANSA_API_KEY" -o /tmp/mprobe250.json "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=250" || true
-          echo "== probe limit250 rows: $(jq '.data|length' /tmp/mprobe250.json 2>/dev/null || echo fail)"
+          # 🔍 فحص قائمة مؤشرات Mansa + محاولة مؤشر مفرد
+          rm -f /tmp/midx.json /tmp/mprobe-indices.json /tmp/mprobe-one.json
+          curl -sS --max-time 20 -H "Authorization: Bearer $MANSA_API_KEY" -o /tmp/mprobe-indices.json "https://mansaapi.com/api/v1/markets/exchanges/EGX/indices?limit=50" || true
+          echo "== indices rows: $(jq '.data|length' /tmp/mprobe-indices.json 2>/dev/null)"
+          echo "== indices[0:3]: $(jq -c '.data[0:3]' /tmp/mprobe-indices.json 2>/dev/null)"
+          curl -sS --max-time 20 -H "Authorization: Bearer $MANSA_API_KEY" -o /tmp/mprobe-one.json "https://mansaapi.com/api/v1/markets/exchanges/EGX/indices/EGX30" || true
+          echo "== indices/EGX30: $(head -c 400 /tmp/mprobe-one.json 2>/dev/null)"
           cat > mansa_idx.js <<'MIDX_EOF'
           const fs=require("fs");
           const pick=(o,keys)=>{for(const k of keys){if(o&&o[k]!=null)return o[k]}return null};
-          const files=["/tmp/mprobe-indexes.json","/tmp/mprobe-indices.json","/tmp/mprobe-index.json"];
+          const files=["/tmp/mprobe-indices.json","/tmp/mprobe-one.json"];
+          const norm=s=>String(s||"").toUpperCase().replace(/\s+/g,"");
+          const is30=r=>norm(pick(r,["code","ticker","symbol","name"])).indexOf("EGX30")>=0||(Array.isArray(r.aliases)&&r.aliases.some(x=>norm(x)==="EGX30"));
           for(const f of files){
             let j=null;try{j=JSON.parse(fs.readFileSync(f,"utf8"))}catch(e){continue}
-            const arr=(j&&j.data&&Array.isArray(j.data))?j.data:((Array.isArray(j))?j:null);
-            if(!arr)continue;
-            const row=arr.find(r=>String(pick(r,["ticker","symbol","code","name"])).toUpperCase().indexOf("EGX30")>=0);
-            if(row){const v=pick(row,["value","close","price","last_price"]);if(v>0){fs.writeFileSync("/tmp/midx.json",JSON.stringify({data:{value:v,change_percent:pick(row,["change_pct","change_percent","changePercent"])}}));console.log("✅ مؤشر EGX30 من Mansa: "+v);process.exit(0)}}
+            const arr=(j&&j.data&&Array.isArray(j.data))?j.data:((j&&j.data&&j.data.data&&Array.isArray(j.data.data))?j.data.data:((Array.isArray(j))?j:null));
+            const row=arr&&arr.find(is30);
+            if(row){
+              const v=pick(row,["value","close","price","last_price","last"]);
+              console.log("ℹ️ EGX30 row: "+JSON.stringify(row).slice(0,300));
+              if(v>0){
+                const td=norm(pick(row,["trade_date","date"]));
+                const today=new Date().toISOString().slice(0,10).replace(/-/g,"");
+                if(td&&td!==today){console.log("⚠️ قيمة Mansa قديمة (trade_date="+td+") — مش هنستخدمها");break}
+                fs.writeFileSync("/tmp/midx.json",JSON.stringify({data:{value:v,change_percent:pick(row,["change_pct","change_percent","changePercent"])}}));
+                console.log("✅ مؤشر EGX30 من Mansa: "+v);process.exit(0)
+              }
+            }
           }
-          console.log("ℹ️ مفيش EGX30 في نقاط نهاية Mansa");
+          console.log("ℹ️ مفيش EGX30 ليف من Mansa");
           MIDX_EOF
           node mansa_idx.js || true
           rm -f /tmp/idx.json
-          if [ -f /tmp/midx.json ]; then
-            cp /tmp/midx.json /tmp/idx.json
-            echo "✅ idx من Mansa"
-          elif [ -n "$OANOR_KEY" ] && curl -sS --retry 2 --max-time 20 -H "x-oanor-key: $OANOR_KEY" -o /tmp/resp.json "https://api.oanor.com/egx-api/v1/index?name=EGX30" && jq -e ".data" /tmp/resp.json >/dev/null 2>&1; then
+          if [ -n "$OANOR_KEY" ] && curl -sS --retry 2 --max-time 20 -H "x-oanor-key: $OANOR_KEY" -o /tmp/resp.json "https://api.oanor.com/egx-api/v1/index?name=EGX30" && jq -e ".data" /tmp/resp.json >/dev/null 2>&1; then
             jq -c "if (.data|type)==\"object\" then . else null end" /tmp/resp.json > /tmp/idx.json
             echo "✅ idx من oanor"
+          elif [ -f /tmp/midx.json ]; then
+            cp /tmp/midx.json /tmp/idx.json
+            echo "✅ idx من Mansa (احتياطي)"
           else
             echo "⚠️ مؤشر EGX30 مش متاح — نكمّل من غيره"
           fi
           if [ -f /tmp/idx.json ]; then
             jq --slurpfile ix /tmp/idx.json ".idx=\$ix[0]" live.json > /tmp/live2.json && mv /tmp/live2.json live.json
           fi
-          # 🩻 مكمل oanor: أي سهم ناقصة من Mansa (MNHD)
+          # 🩻 مكمل oanor: أي سهم ناقصة من Mansa (MNHD) — السطر كله في نفس المحتوى علشان heredoc
           if [ -n "$OANOR_KEY" ]; then
-            cat > need_patch.js <<'PATCH_EOF'
-            const fs=require("fs");
-            const j=JSON.parse(fs.readFileSync("live.json","utf8"));
-            const SYMS="ABUK ACGC ADIB AMOC ARCC ATQA CIEB CIRA CLHO COMI EAST EFID EFIH EGAL EGAS EGCH EGTS ELKA EMFD ETEL ETRS FAIT FAITA FWRY GBCO GOUR HDBK HRHO ICFC IFAP ISPH JUFO LCSW MASR MBSC MCQE MFPC MNHD MPCI MPCO MTIE OCDI OLFI ORAS ORHD ORWE PHDC POUL RACC RMDA SAUD SKPC SWDY TAQA TMGH".split(" ");
-            const have={};(j.quotes||[]).forEach(q=>{have[q.ticker]=q});
-            const need=SYMS.filter(s=>!have[s]);
-            fs.writeFileSync("/tmp/need.txt",need.join(","));
-            console.log("🩻 محتاجين مكمل oanor لـ "+need.length+" سهم: "+need.join(","));
-            PATCH_EOF
-            node need_patch.js
-            NEED=$(cat /tmp/need.txt)
-            if [ -n "$NEED" ]; then
-              : > /tmp/patch.parts
-              IFS="," read -ra NA <<< "$NEED"
-              PBN=()
-              for i in "${!NA[@]}"; do
-                PBN+=("${NA[$i]}")
-                if [ ${#PBN[@]} -eq 20 ] || [ $i -eq $(( ${#NA[@]} - 1 )) ]; then
-                  CODES=$(IFS=,; echo "${PBN[*]}")
-                  if curl -sS --max-time 25 -H "x-oanor-key: $OANOR_KEY" -o /tmp/part.json "https://api.oanor.com/egx-api/v1/quote?codes=$CODES"; then
-                    jq -c ".data.quotes // []" /tmp/part.json >> /tmp/patch.parts || true
-                    echo >> /tmp/patch.parts
-                  fi
-                  PBN=()
-                fi
-              done
-              if [ -s /tmp/patch.parts ]; then
-                cat > merge_patch.js <<'MERGE_EOF'
-                const fs=require("fs");
-                const j=JSON.parse(fs.readFileSync("live.json","utf8"));
-                const have={};(j.quotes||[]).forEach(q=>{have[q.ticker]=q});
-                let add=[];
-                try{const txt=fs.readFileSync("/tmp/patch.parts","utf8");txt.split("\n").forEach(l=>{l=l.trim();if(!l)return;try{const x=JSON.parse(l);if(Array.isArray(x))add=add.concat(x)}catch(e){}})}catch(e){}
-                const pick=(o,keys)=>{for(const k of keys){if(o[k]!=null)return o[k]}return null};
-                let added=0;
-                add.forEach(oq=>{
-                  const t=String(pick(oq,["ticker","symbol"])||"").toUpperCase();if(!t||have[t])return;
-                  const price=pick(oq,["price","close","last_price"]);
-                  if(price>0){j.quotes.push({ticker:t,name:(oq.name||null),price:price,change_percent:pick(oq,["change_percent","changePercent","change_percentage"]),volume:pick(oq,["volume","vol"]),open:pick(oq,["open"]),high:pick(oq,["high"]),low:pick(oq,["low"]),trade_date:pick(oq,["trade_date","date"])});have[t]=1;added++}
-                });
-                fs.writeFileSync("live.json",JSON.stringify(j));
-                console.log("🩻 oanor مكمل: اتضاف "+added+" سهم");
-                MERGE_EOF
-                node merge_patch.js || echo "⚠️ دمج المكمل فشل"
-              fi
-            fi
+          cat > need_patch.js <<'PATCH_EOF'
+          const fs=require("fs");
+          const j=JSON.parse(fs.readFileSync("live.json","utf8"));
+          const SYMS="ABUK ACGC ADIB AMOC ARCC ATQA CIEB CIRA CLHO COMI EAST EFID EFIH EGAL EGAS EGCH EGTS ELKA EMFD ETEL ETRS FAIT FAITA FWRY GBCO GOUR HDBK HRHO ICFC IFAP ISPH JUFO LCSW MASR MBSC MCQE MFPC MNHD MPCI MPCO MTIE OCDI OLFI ORAS ORHD ORWE PHDC POUL RACC RMDA SAUD SKPC SWDY TAQA TMGH".split(" ");
+          const have={};(j.quotes||[]).forEach(q=>{have[q.ticker]=q});
+          const need=SYMS.filter(s=>!have[s]);
+          fs.writeFileSync("/tmp/need.txt",need.join(","));
+          console.log("🩻 محتاجين مكمل oanor لـ "+need.length+" سهم: "+need.join(","));
+          PATCH_EOF
+          node need_patch.js
+          NEED=$(cat /tmp/need.txt)
+          if [ -n "$NEED" ]; then
+          : > /tmp/patch.parts
+          IFS="," read -ra NA <<< "$NEED"
+          PBN=()
+          for i in "${!NA[@]}"; do
+          PBN+=("${NA[$i]}")
+          if [ ${#PBN[@]} -eq 20 ] || [ $i -eq $(( ${#NA[@]} - 1 )) ]; then
+          CODES=$(IFS=,; echo "${PBN[*]}")
+          if curl -sS --max-time 25 -H "x-oanor-key: $OANOR_KEY" -o /tmp/part.json "https://api.oanor.com/egx-api/v1/quote?codes=$CODES"; then
+          jq -c ".data.quotes // []" /tmp/part.json >> /tmp/patch.parts || true
+          echo >> /tmp/patch.parts
+          fi
+          PBN=()
+          fi
+          done
+          if [ -s /tmp/patch.parts ]; then
+          cat > merge_patch.js <<'MERGE_EOF'
+          const fs=require("fs");
+          const j=JSON.parse(fs.readFileSync("live.json","utf8"));
+          const have={};(j.quotes||[]).forEach(q=>{have[q.ticker]=q});
+          let add=[];
+          try{const txt=fs.readFileSync("/tmp/patch.parts","utf8");txt.split("\n").forEach(l=>{l=l.trim();if(!l)return;try{const x=JSON.parse(l);if(Array.isArray(x))add=add.concat(x)}catch(e){}})}catch(e){}
+          const pick=(o,keys)=>{for(const k of keys){if(o[k]!=null)return o[k]}return null};
+          let added=0;
+          add.forEach(oq=>{
+          const t=String(pick(oq,["ticker","symbol"])||"").toUpperCase();if(!t||have[t])return;
+          const price=pick(oq,["price","close","last_price"]);
+          if(price>0){j.quotes.push({ticker:t,name:(oq.name||null),price:price,change_percent:pick(oq,["change_percent","changePercent","change_percentage"]),volume:pick(oq,["volume","vol"]),open:pick(oq,["open"]),high:pick(oq,["high"]),low:pick(oq,["low"]),trade_date:pick(oq,["trade_date","date"])});have[t]=1;added++}
+          });
+          fs.writeFileSync("live.json",JSON.stringify(j));
+          console.log("🩻 oanor مكمل: اتضاف "+added+" سهم");
+          MERGE_EOF
+          node merge_patch.js || echo "⚠️ دمج المكمل فشل"
+          fi
+          fi
           else
-            echo "⚠️ مفيش OANOR_KEY — من غير مكمل"
+          echo "⚠️ مفيش OANOR_KEY — من غير مكمل"
           fi
       - name: 🖨️ عرض اللوج
         if: always()
