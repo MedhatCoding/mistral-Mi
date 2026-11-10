@@ -1,11 +1,12 @@
-# دمج الملفات بدل متغيرات الشل (jq -s) — أصلح crash دمج الدفعات
+# 🤖 Live Relay v2 — Mansa API أسعار كل البورصة + oanor لمؤشر EGX30
+# التطبيق كله (الأسعار اللحظية + المتداول الوهمي) بيقرا live.json من الفرع ده
 name: 🤖 Live Relay — أسعار EGX اللحظية
 on:
   push:
     branches: [main]
     paths: [".github/workflows/live-relay.yml"]
   schedule:
-    - cron: "*/20 7-12 * * 0-4"   # كل 20 دقيقة 7:00-12:59 UTC = 9ص-3م بتوقيت القاهرة (يغطي الجلسة صيفًا وشتاءً)، الأحد-الخميس
+    - cron: "*/20 7-12 * * 0-4"   # كل 20 دقيقة أثناء الجلسة (9ص-3م بتوقيت القاهرة)، الأحد-الخميس
   workflow_dispatch:
 
 permissions:
@@ -20,91 +21,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: ⚡ جلب الأسعار + مؤشر EGX30 من oanor
+      - name: ⚡ جلب الأسعار من Mansa + مؤشر EGX30 من oanor
         id: fetch
         continue-on-error: true
         shell: bash
         env:
+          MANSA_API_KEY: ${{ secrets.MANSA_API_KEY }}
           OANOR_KEY: ${{ secrets.OANOR_KEY }}
         run: |
-          {
-            trap 'echo "❌ فشل عند السطر $LINENO (rc=$?)"' ERR
-            echo "== بيئة التشغيل =="
-            echo "shell: $0 | pid $$ | bash: ${BASH_VERSION:-مش bash}"
-            echo "curl: $(curl --version 2>&1 | head -1)"
-            echo "jq: $(jq --version 2>&1)"
-            echo "== اختبار oanor بدون مفتاح =="
-            prc=0
-            pcode=$(curl -sS --max-time 15 -o /tmp/probe.json -w "%{http_code}" "https://api.oanor.com/egx-api/v1/quote?codes=COMI" 2>/tmp/probe.err) || prc=$?
-            echo "probe: curl_rc=$prc http=$pcode"
-            echo "probe_body: $(head -c 200 /tmp/probe.json 2>/dev/null)"
-            echo "probe_err: $(head -c 200 /tmp/probe.err 2>/dev/null)"
-            if [ -z "$OANOR_KEY" ]; then
-              echo "⚠️ مفيش مفتاح OANOR_KEY — ضيفه من Settings ← Secrets and variables ← Actions ← New repository secret"
-              exit 1
-            fi
-            set -e
-            fetch() {
-              local url="$1" code body
-              for attempt in 1 2 3; do
-                rm -f /tmp/resp.json
-                code=$(curl -sS --max-time 25 --retry 2 --retry-delay 2 --retry-all-errors \
-                  -H "x-oanor-key: $OANOR_KEY" -H "Accept: application/json" \
-                  -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
-                  -o /tmp/resp.json -w "%{http_code}" "$url" || true)
-                body=$(head -c 300 /tmp/resp.json 2>/dev/null || true)
-                case "$code" in
-                  2*) if [ -n "$body" ] && jq -e . /tmp/resp.json >/dev/null 2>&1; then
-                        echo "   ✅ HTTP $code — ${url##*codes=}"
-                        return 0
-                      fi ;;
-                  402) echo "   💳 HTTP 402 — المفتاح مش مشترك في خطة EGX API (اشترك مجانًا من oanor.com ← صفحة EGX API ← Subscribe)" ;;
-                  401) echo "   🔑 HTTP 401 — المفتاح غلط أو ملغي" ;;
-                  429) echo "   ⏳ HTTP 429 — الحصة خلصت مؤقتًا" ;;
-                esac
-                echo "⚠️ محاولة $attempt/3 — HTTP=$code — الرد: ${body:-فاضي تمامًا}"
-                sleep 2
-              done
-              return 1
-            }
-            SYMS="ABUK ACGC ADIB AMOC ARCC ATQA CIEB CIRA CLHO COMI EAST EFID EFIH EGAL EGAS EGCH EGTS ELKA EMFD ETEL ETRS FAIT FAITA FWRY GBCO GOUR HDBK HRHO ICFC IFAP ISPH JUFO LCSW MASR MBSC MCQE MFPC MNHD MPCI MPCO MTIE OCDI OLFI ORAS ORHD ORWE PHDC POUL RACC RMDA SAUD SKPC SWDY TAQA TMGH"
-            echo "[]" > /tmp/all.json
-            BATCH=()
-            IFS=' ' read -ra ARR <<< "$SYMS"
-            for i in "${!ARR[@]}"; do
-              BATCH+=( "${ARR[$i]}" )
-              if [ ${#BATCH[@]} -eq 20 ] || [ $i -eq $(( ${#ARR[@]} - 1 )) ]; then
-                CODES=$(IFS=,; echo "${BATCH[*]}")
-                if ! fetch "https://api.oanor.com/egx-api/v1/quote?codes=$CODES"; then
-                  echo "⚠️ فشل جلب دفعة $CODES بعد كل المحاولات"
-                  exit 1
-                fi
-                jq -c '.data.quotes // []' /tmp/resp.json > /tmp/part.json
-                jq -s '.[0] + .[1]' /tmp/all.json /tmp/part.json > /tmp/all.tmp && mv /tmp/all.tmp /tmp/all.json
-                echo "   → $(jq 'length' /tmp/part.json) سهم (إجمالي $(jq 'length' /tmp/all.json))"
-                BATCH=()
-                sleep 1
-              fi
-            done
-            N=$(jq 'length' /tmp/all.json)
-            if [ -z "$N" ] || [ "$N" -eq 0 ]; then
-              echo "⚠️ oanor ما رجّعش أي أسعار — آخر رد: $(head -c 300 /tmp/resp.json 2>/dev/null)"
-              exit 1
-            fi
-            rm -f /tmp/idx.json
-            if fetch "https://api.oanor.com/egx-api/v1/index?name=EGX30"; then
-              jq -c 'if (.data|type)=="object" then . else null end' /tmp/resp.json > /tmp/idx.json
-            else
-              echo "⚠️ فشل جلب مؤشر EGX30 — نكمّل من غيره"
-            fi
-            T=$(date +%s%3N)
-            if [ -f /tmp/idx.json ]; then
-              jq -n --argjson t "$T" --slurpfile q /tmp/all.json --slurpfile ix /tmp/idx.json '{t:$t, quotes:$q[0], idx:$ix[0]}' > live.json
-            else
-              jq -n --argjson t "$T" --slurpfile q /tmp/all.json '{t:$t, quotes:$q[0], idx:null}' > live.json
-            fi
-            echo "✅ جلب $N سهم + مؤشر EGX30 → live.json"
-          } > /tmp/relay.log 2>&1
+          exec > /tmp/relay.log 2>&1
+          echo "== Live Relay v2 (Mansa) =="
+          if [ -z "$MANSA_API_KEY" ]; then echo "⚠️ مفيش MANSA_API_KEY — ضيفه من Settings ← Secrets and variables ← Actions ← New repository secret"; exit 1; fi
+          curl -sS --retry 2 --max-time 45 -w "%{http_code}" -o /tmp/mansa.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200" > /tmp/mansa.code 2>/tmp/mansa.err || true
+          curl -sS --retry 2 --max-time 45 -w "%{http_code}" -o /tmp/mansa2.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200&offset=200" > /tmp/mansa2.code 2>/tmp/mansa2.err || true
+          cat > mansa_live.js <<'MANSA_EOF'
+          const fs=require("fs");
+          const code=(fs.readFileSync("/tmp/mansa.code","utf8").trim()||"0");
+          let raw=null,raw2=null;
+          try{raw=JSON.parse(fs.readFileSync("/tmp/mansa.json","utf8"))}catch(e){}
+          try{raw2=JSON.parse(fs.readFileSync("/tmp/mansa2.json","utf8"))}catch(e){}
+          const rows0=(raw&&raw.data&&Array.isArray(raw.data))?raw.data:((raw&&Array.isArray(raw))?raw:null);
+          const rows2=(raw2&&raw2.data&&Array.isArray(raw2.data))?raw2.data:((raw2&&Array.isArray(raw2))?raw2:null);
+          const rows=rows0?(rows2?rows0.concat(rows2):rows0):null;
+          const pick=(o,keys)=>{for(const k of keys){if(o[k]!=null)return o[k]}return null};
+          const SYMS="ABUK ACGC ADIB AMOC ARCC ATQA CIEB CIRA CLHO COMI EAST EFID EFIH EGAL EGAS EGCH EGTS ELKA EMFD ETEL ETRS FAIT FAITA FWRY GBCO GOUR HDBK HRHO ICFC IFAP ISPH JUFO LCSW MASR MBSC MCQE MFPC MNHD MPCI MPCO MTIE OCDI OLFI ORAS ORHD ORWE PHDC POUL RACC RMDA SAUD SKPC SWDY TAQA TMGH".split(" ");
+          if(!rows||!rows.length){console.log("❌ Mansa ما رجّعش أسعار (http="+code+") — آخر رد: "+fs.readFileSync("/tmp/mansa.json","utf8").slice(0,200));process.exit(1)}
+          const quotes=rows.map(r=>{const t=String(pick(r,["ticker","symbol","canonical_symbol"])||"").toUpperCase();return {ticker:t,name:(r.name||null),price:pick(r,["close","price","last_price","current_price"]),change_percent:pick(r,["change_percentage","change_pct","changePercent"]),volume:pick(r,["volume","vol"]),open:pick(r,["open"]),high:pick(r,["high"]),low:pick(r,["low"]),trade_date:pick(r,["trade_date","date"])}}).filter(q=>q.ticker&&q.price>0&&SYMS.indexOf(q.ticker)>=0);
+          if(!quotes.length){console.log("❌ مفيش أي سهم من قائمة التطبيق في رد Mansa");process.exit(1)}
+          fs.writeFileSync("live.json",JSON.stringify({t:Date.now(),src:"mansa",quotes:quotes,idx:null}));
+          console.log("✅ Mansa: "+quotes.length+" سهم (من "+rows.length+") → live.json");
+          MANSA_EOF
+          node mansa_live.js
+          rm -f /tmp/idx.json
+          if [ -n "$OANOR_KEY" ] && curl -sS --max-time 20 -H "x-oanor-key: $OANOR_KEY" -o /tmp/resp.json "https://api.oanor.com/egx-api/v1/index?name=EGX30" && jq -e ".data" /tmp/resp.json >/dev/null 2>&1; then
+            jq -c "if (.data|type)==\"object\" then . else null end" /tmp/resp.json > /tmp/idx.json
+          else
+            echo "⚠️ مؤشر EGX30 مش متاح — نكمّل من غيره"
+          fi
+          if [ -f /tmp/idx.json ]; then
+            jq --slurpfile ix /tmp/idx.json ".idx=\$ix[0]" live.json > /tmp/live2.json && mv /tmp/live2.json live.json
+            echo "✅ مؤشر EGX30 اتضاف"
+          fi
       - name: 🖨️ عرض اللوج
         if: always()
         shell: bash
@@ -118,7 +75,7 @@ jobs:
           mkdir -p /tmp/pub
           if [ -f live.json ]; then
             cp live.json /tmp/pub/live.json
-            MSG="chore: 🤖 تحديث لقطة الأسعار اللحظية [skip ci]"
+            MSG="chore: 🤖 تحديث لقطة الأسعار اللحظية (Mansa) [skip ci]"
           else
             if [ -f /tmp/relay.log ]; then cp /tmp/relay.log /tmp/pub/relay-debug.txt; else echo "مفيش لوج" > /tmp/pub/relay-debug.txt; fi
             MSG="chore: 🤖 تشخيص فشل الريليه [skip ci]"
