@@ -97,15 +97,16 @@ jobs:
           cat > sa_build.js <<'SA_EOF'
           const fs=require('fs');
           let auto=[];
+          let mk=[];
           let sdate=null;
           try{
             const j=JSON.parse(fs.readFileSync('sharia_eg.json','utf8'));
             sdate=j.date||null;
-            if(j&&j.rows){auto=Object.keys(j.rows).filter(function(t){return /-1$/.test((j.rows[t]||{}).v||'')});}
+            if(j&&j.rows){auto=Object.keys(j.rows).filter(function(t){return /-1$/.test((j.rows[t]||{}).v||'')});mk=Object.keys(j.rows).filter(function(t){const vv=(j.rows[t]||{}).v||'';return /-0$/.test(vv)&&/1/.test(vv.replace(/-0$/,''))});}
           }catch(e){auto=[];}
           if(auto.length>=30){
-            console.log('Sharia auto: '+auto.length+' من المصادر + مكونات EGX33 دايمًا — '+sdate);
-            fs.writeFileSync('sharia_auto.js','SHARIA=Array.from(new Set([].concat('+JSON.stringify(auto)+',SHARIA_IDX)));');
+            console.log('Sharia auto: '+auto.length+' متوافق + '+mk.length+' مختلف فيه + مكونات EGX33 دايمًا — '+sdate);
+            fs.writeFileSync('sharia_auto.js','SHARIA=Array.from(new Set([].concat('+JSON.stringify(auto)+',SHARIA_IDX,'+JSON.stringify(mk)+')));var MKTHTF='+JSON.stringify(mk)+';');
           }else{
             console.log('Sharia auto FAILED — fallback to static 47');
             fs.writeFileSync('sharia_auto.js','');
@@ -135,7 +136,7 @@ jobs:
               const nv=analyze(arrL);if(nv)v=nv;
               prev=price;price=q.price;chg=(q.chg!=null?q.chg:chg);if(q.vol)vol=q.vol;
             }
-            res.push({sym:sym,name:(NAMES[sym]||sym),price:price,prev:prev,chg:chg,vol:vol,v:v,sh:SHARIA.includes(sym),arr:arr});
+            res.push({sym:sym,name:(NAMES[sym]||sym),price:price,prev:prev,chg:chg,vol:vol,v:v,sh:SHARIA.includes(sym),mk:(typeof MKTHTF!=="undefined"&&MKTHTF.indexOf(sym)>=0),arr:arr});
           });
           /* نفس محرك التطبيق: الشريعة فقط ☪️ · عتبة شراء sc>=2 · أفضل 3 + أعلى 6 تحذيرات · فلتر سيولة مليون ج.م */
           const liq=res.filter(function(r){return r.vol==null||r.price*r.vol>=1000000});
@@ -169,7 +170,7 @@ jobs:
           };
           const mk=function(r,withBt){
             const v=r.v;
-            const o={s:r.sym,n:r.name,pr:v.rec,cls:v.cls,em:v.em,st:v.stars,sc:Math.round(v.sc*100)/100,conf:v.conf,p:r.price,chg:Math.round(r.chg*100)/100,sup:v.sup,res:v.res,stop:v.stop,t1:v.t1,risk:v.risk,rs:(v.rs||[]).slice(0,3),bt:null};
+            const o={s:r.sym,n:r.name,pr:v.rec,cls:v.cls,em:v.em,st:v.stars,sc:Math.round(v.sc*100)/100,conf:v.conf,p:r.price,chg:Math.round(r.chg*100)/100,sup:v.sup,res:v.res,stop:v.stop,t1:v.t1,risk:v.risk,rs:(v.rs||[]).slice(0,3),mk:!!r.mk,bt:null};
             if(withBt)o.bt=btOne(r);
             return o;
           };
@@ -191,7 +192,7 @@ jobs:
               if(q.price*(q.vol||0)<5000000)return;
               const stop=Math.min((q.low>0?q.low:q.price*0.98),q.price*0.985);
               const target=q.price+(q.price-stop)*1.6;
-              intraday.push({s:r.sym,n:r.name,p:q.price,o:q.open,h:q.high,l:q.low,chg:q.chg,gap:Math.round(gap*100)/100,mom:Math.round(mom*100)/100,vmul:Math.round(vmul*10)/10,stop:Math.round(stop*100)/100,target:Math.round(target*100)/100,d:(q.td||null),sc:Math.round((mom*2+Math.min(vmul,4))*10)/10});
+              intraday.push({s:r.sym,n:r.name,mk:(typeof MKTHTF!=="undefined"&&MKTHTF.indexOf(r.sym)>=0),p:q.price,o:q.open,h:q.high,l:q.low,chg:q.chg,gap:Math.round(gap*100)/100,mom:Math.round(mom*100)/100,vmul:Math.round(vmul*10)/10,stop:Math.round(stop*100)/100,target:Math.round(target*100)/100,d:(q.td||null),sc:Math.round((mom*2+Math.min(vmul,4))*10)/10});
             }catch(e){}
           });
           intraday.sort(function(a,b){return b.sc-a.sc});

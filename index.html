@@ -1752,7 +1752,7 @@ function computeETAs(p){
 function renderPicks(p=PICKS){
   if(!p||(!p.buys&&!p.sells)){$("picks-grid").innerHTML='<div class="empty"><span class="spin"></span> جارٍ فحص السوق تلقائيًا لتوليد توصيات اليوم — من غير أي زر</div>';return}
   const card=(x,isBuy)=>`<div class="card" style="background:var(--card2)">
-    <div class="row" style="gap:10px">${avHTML(x.sym)}<b style="font-size:17px">${x.n||x.sym}</b><span class="sect-tag">${x.sym}</span>${SHARIA.includes(x.sym)?'<span class="badge b-sharia">☪️ شريعة</span>':""}<span class="badge ${isBuy?"b-buy":"b-sell"}">${x.chg>=0?"+":""}${x.chg.toFixed(2)}%</span><span style="margin-inline-start:auto" class="stars">${"★".repeat(x.v.stars)}${"☆".repeat(5-x.v.stars)}</span></div>
+    <div class="row" style="gap:10px">${avHTML(x.sym)}<b style="font-size:17px">${x.n||x.sym}</b><span class="sect-tag">${x.sym}</span>${x.mk?'<span class="badge b-hold" title="أجاز بعض مصادر الفحص الشرعي هذا السهم وبعضها لم يجزه — راجع نسبة التطهير قبل الشراء">⚖️ مختلف فيه</span>':(SHARIA.includes(x.sym)?'<span class="badge b-sharia">☪️ شريعة</span>':"")}<span class="badge ${isBuy?"b-buy":"b-sell"}">${x.chg>=0?"+":""}${x.chg.toFixed(2)}%</span><span style="margin-inline-start:auto" class="stars">${"★".repeat(x.v.stars)}${"☆".repeat(5-x.v.stars)}</span></div>
     <div class="row" style="gap:8px;margin:8px 0"><span class="rec-badge ${x.v.cls}" style="font-size:14px;padding:7px 12px">${x.v.em} ${x.v.rec}</span><span class="small muted">ثقة ${x.v.conf}%</span><span class="small muted">السعر ${NF(x.price)}</span>${isBuy&&x.ml!=null?'<span class="badge '+(x.ml>=0.55?"b-buy":x.ml<=0.45?"b-sell":"b-neu")+'" title="احتمال تفوق السهم على أقرانه خلال ٤ أسابيع حسب نموذجي ML — إشارة مؤيدة فقط مش قرار">🧠 ML '+(x.ml*100).toFixed(0)+'%</span>':""}${x.v.risk?'<span class="badge b-hold" title="تصنيف المخاطرة من المدى اليومي الحقيقي (ATR) نسبة للسعر — الوقف والهدف متحركين مع تقلب السهم">🛡️ مخاطرة '+x.v.risk+'</span>':""}${isBuy&&REV[x.sym]?'<span class="badge '+(REV[x.sym].st==="ok"?"b-buy":REV[x.sym].st==="warn"?"b-hold":"b-sell")+'" title="'+(REV[x.sym].msgs||[]).join(" — ")+'">'+(REV[x.sym].st==="ok"?"✅ اتمراجعت: لسه قايمة":REV[x.sym].st==="warn"?"⚠️ الصورة اتغيرت":"❌ اتلغت")+'</span>':""}</div>
     <ul class="reasons small">${x.v.rs.filter(r=>r[0]!=="ℹ️").slice(0,3).map(r=>`<li>${r[0]} ${r[1]}</li>`).join("")}</ul>
     ${REV[x.sym]&&REV[x.sym].st!=="ok"&&(REV[x.sym].msgs||[]).length?'<ul class="reasons small" style="margin-top:6px;border:1px solid var(--border2);border-radius:10px;padding:6px 10px;background:rgba(255,180,84,.06)">'+REV[x.sym].msgs.map(m=>`<li>⚠️ ${m}</li>`).join("")+'</ul>':""}
@@ -4509,7 +4509,7 @@ function intradayRender(){
         list.forEach(function(x){
           var rr=((x.target-x.p)/Math.max(x.p-x.stop,0.001)).toFixed(1);
           h+='<div class="card" style="margin:0;background:var(--card2)"><b>'+x.s+'</b> · '+x.n
-            +'<div class="metrics" style="margin:8px 0">'
+            +(x.mk?' <span class="badge b-hold">⚖️ مختلف فيه</span>':'')+'<div class="metrics" style="margin:8px 0">'
             +'<div class="metric"><div class="lbl">آخر سعر</div><div class="val num">'+x.p+'</div></div>'
             +'<div class="metric"><div class="lbl">زخم الجلسة</div><div class="val num" style="color:var(--green)">+'+x.mom+'%</div></div>'
             +'<div class="metric"><div class="lbl">الحجم/المتوسط</div><div class="val num">×'+x.vmul+'</div></div>'
@@ -4528,7 +4528,7 @@ function serverPicksFetch(){
   try{
     fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/picks.json?cb="+Date.now()).then(function(j){
       if(!j||!j.t||!(j.buys||[]).length||Date.now()-j.t>90*60*1000)return;/* قديمة — الفحص المحلي يكمل عادي */
-      var mk=function(x){return {sym:x.s,n:x.n,price:x.p,chg:x.chg,ml:null,bt:(x.bt&&x.bt.d?x.bt:null),v:{rec:x.pr,cls:(x.cls||"rec-buy"),em:x.em,stars:(x.st||0),conf:(x.conf||0),sc:(x.sc||0),stop:x.stop,t1:x.t1,sup:x.sup,res:x.res,risk:x.risk,rs:(x.rs||[])}}};
+      var mk=function(x){return {sym:x.s,n:x.n,price:x.p,chg:x.chg,ml:null,mk:!!x.mk,bt:(x.bt&&x.bt.d?x.bt:null),v:{rec:x.pr,cls:(x.cls||"rec-buy"),em:x.em,stars:(x.st||0),conf:(x.conf||0),sc:(x.sc||0),stop:x.stop,t1:x.t1,sup:x.sup,res:x.res,risk:x.risk,rs:(x.rs||[])}}};
       try{renderPicks({time:j.t,server:true,buys:(j.buys||[]).map(mk),sells:(j.sells||[]).map(mk)})}catch(z){}
     }).catch(function(){});
   }catch(e){}
@@ -4575,7 +4575,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.96";
+  var APP_VER="3.97";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
