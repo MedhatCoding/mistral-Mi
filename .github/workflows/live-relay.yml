@@ -1,5 +1,4 @@
-# 🤖 Live Relay v2 — Mansa API أسعار كل البورصة + oanor لمؤشر EGX30
-# التطبيق كله (الأسعار اللحظية + المتداول الوهمي) بيقرا live.json من الفرع ده
+# 🤖 Live Relay v2.1 — Mansa API أساسي + oanor مكمل (MNHD وأسهم الافتتاح الناقص) + oanor لمؤشر EGX30
 name: 🤖 Live Relay — أسعار EGX اللحظية
 on:
   push:
@@ -21,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: ⚡ جلب الأسعار من Mansa + مؤشر EGX30 من oanor
+      - name: ⚡ جلب الأسعار من Mansa + مكمل oanor + مؤشر EGX30
         id: fetch
         continue-on-error: true
         shell: bash
@@ -30,7 +29,7 @@ jobs:
           OANOR_KEY: ${{ secrets.OANOR_KEY }}
         run: |
           exec > /tmp/relay.log 2>&1
-          echo "== Live Relay v2 (Mansa) =="
+          echo "== Live Relay v2.1 (Mansa + oanor مكمل) =="
           if [ -z "$MANSA_API_KEY" ]; then echo "⚠️ مفيش MANSA_API_KEY — ضيفه من Settings ← Secrets and variables ← Actions ← New repository secret"; exit 1; fi
           curl -sS --retry 2 --max-time 45 -w "%{http_code}" -o /tmp/mansa.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200" > /tmp/mansa.code 2>/tmp/mansa.err || true
           curl -sS --retry 2 --max-time 45 -w "%{http_code}" -o /tmp/mansa2.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200&offset=200" > /tmp/mansa2.code 2>/tmp/mansa2.err || true
@@ -52,6 +51,71 @@ jobs:
           console.log("✅ Mansa: "+quotes.length+" سهم (من "+rows.length+") → live.json");
           MANSA_EOF
           node mansa_live.js
+          # 🩹 مكمل oanor: أي سهم ناقص من Mansa أو من غير سعر افتتاح
+          if [ -n "$OANOR_KEY" ]; then
+            cat > need_patch.js <<'PATCH_EOF'
+            const fs=require("fs");
+            const j=JSON.parse(fs.readFileSync("live.json","utf8"));
+            const SYMS="ABUK ACGC ADIB AMOC ARCC ATQA CIEB CIRA CLHO COMI EAST EFID EFIH EGAL EGAS EGCH EGTS ELKA EMFD ETEL ETRS FAIT FAITA FWRY GBCO GOUR HDBK HRHO ICFC IFAP ISPH JUFO LCSW MASR MBSC MCQE MFPC MNHD MPCI MPCO MTIE OCDI OLFI ORAS ORHD ORWE PHDC POUL RACC RMDA SAUD SKPC SWDY TAQA TMGH".split(" ");
+            const have={};(j.quotes||[]).forEach(q=>{have[q.ticker]=q});
+            const need=SYMS.filter(s=>{const q=have[s];return !q||!(q.open>0)});
+            fs.writeFileSync("/tmp/need.txt",need.join(","));
+            console.log("🩹 محتاجين مكمل oanor لـ "+need.length+" سهم: "+need.join(","));
+            PATCH_EOF
+            node need_patch.js
+            NEED=$(cat /tmp/need.txt)
+            if [ -n "$NEED" ]; then
+              : > /tmp/patch.parts
+              IFS="," read -ra NA <<< "$NEED"
+              PBN=()
+              for i in "${!NA[@]}"; do
+                PBN+=("${NA[$i]}")
+                if [ ${#PBN[@]} -eq 20 ] || [ $i -eq $(( ${#NA[@]} - 1 )) ]; then
+                  CODES=$(IFS=,; echo "${PBN[*]}")
+                  if curl -sS --max-time 25 -H "x-oanor-key: $OANOR_KEY" -o /tmp/part.json "https://api.oanor.com/egx-api/v1/quote?codes=$CODES"; then
+                    jq -c ".data.quotes // []" /tmp/part.json >> /tmp/patch.parts || true
+                    echo >> /tmp/patch.parts
+                  fi
+                  PBN=()
+                fi
+              done
+              if [ -s /tmp/patch.parts ]; then
+                cat > merge_patch.js <<'MERGE_EOF'
+                const fs=require("fs");
+                const j=JSON.parse(fs.readFileSync("live.json","utf8"));
+                const have={};(j.quotes||[]).forEach(q=>{have[q.ticker]=q});
+                let add=[];
+                try{const txt=fs.readFileSync("/tmp/patch.parts","utf8");txt.split("\n").forEach(l=>{l=l.trim();if(!l)return;try{const x=JSON.parse(l);if(Array.isArray(x))add=add.concat(x)}catch(e){}})}catch(e){}
+                const pick=(o,keys)=>{for(const k of keys){if(o[k]!=null)return o[k]}return null};
+                let fixed=0,added=0;
+                add.forEach(oq=>{
+                  const t=String(pick(oq,["ticker","symbol"])||"").toUpperCase();if(!t)return;
+                  const price=pick(oq,["price","close","last_price"]);
+                  const open=pick(oq,["open"]);
+                  const chg=pick(oq,["change_percent","changePercent","change_percentage"]);
+                  const vol=pick(oq,["volume","vol"]);
+                  const hi=pick(oq,["high"]);const lo=pick(oq,["low"]);
+                  const q=have[t];
+                  if(!q){if(price>0){j.quotes.push({ticker:t,name:(oq.name||null),price:price,change_percent:chg,volume:vol,open:open,high:hi,low:lo,trade_date:pick(oq,["trade_date","date"])});have[t]=j.quotes[j.quotes.length-1];added++}return}
+                  if(!(q.open>0)&&open>0){q.open=open;fixed++}
+                  if(q.change_percent==null&&chg!=null)q.change_percent=chg;
+                  if(!(q.volume>0)&&vol!=null)q.volume=vol;
+                  if(!(q.high>0)&&hi!=null)q.high=hi;
+                  if(!(q.low>0)&&lo!=null)q.low=lo;
+                });
+                fs.writeFileSync("live.json",JSON.stringify(j));
+                console.log("🩹 oanor مكمل: اتضاف "+added+" سهم + اتصلح الافتتاح لـ "+fixed+" سهم");
+                MERGE_EOF
+                node merge_patch.js || echo "⚠️ دمج المكمل فشل — نكمل ببيانات Mansa بس"
+              else
+                echo "⚠️ oanor مكمل ما رجّعش حاجة — نكمل ببيانات Mansa بس"
+              fi
+            else
+              echo "✅ مفيش حاجة ناقصة — Mansa غطّى كل حاجة"
+            fi
+          else
+            echo "⚠️ مفيش OANOR_KEY — من غير مكمل"
+          fi
           rm -f /tmp/idx.json
           if [ -n "$OANOR_KEY" ] && curl -sS --max-time 20 -H "x-oanor-key: $OANOR_KEY" -o /tmp/resp.json "https://api.oanor.com/egx-api/v1/index?name=EGX30" && jq -e ".data" /tmp/resp.json >/dev/null 2>&1; then
             jq -c "if (.data|type)==\"object\" then . else null end" /tmp/resp.json > /tmp/idx.json
@@ -75,7 +139,7 @@ jobs:
           mkdir -p /tmp/pub
           if [ -f live.json ]; then
             cp live.json /tmp/pub/live.json
-            MSG="chore: 🤖 تحديث لقطة الأسعار اللحظية (Mansa) [skip ci]"
+            MSG="chore: 🤖 تحديث لقطة الأسعار اللحظية (Mansa + مكمل) [skip ci]"
           else
             if [ -f /tmp/relay.log ]; then cp /tmp/relay.log /tmp/pub/relay-debug.txt; else echo "مفيش لوج" > /tmp/pub/relay-debug.txt; fi
             MSG="chore: 🤖 تشخيص فشل الريليه [skip ci]"
