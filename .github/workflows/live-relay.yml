@@ -59,7 +59,7 @@ jobs:
           for IX in EGX30 EGX70 EGX100 EGX33; do
           if curl -sS --retry 2 --max-time 20 -H "x-oanor-key: $OANOR_KEY" -o /tmp/ix.json "https://api.oanor.com/egx-api/v1/index?name=$IX" && jq -e ".data.value" /tmp/ix.json >/dev/null 2>&1; then
           echo "✅ $IX: $(jq -c "{value:.data.value,change_percent:.data.change_percent}" /tmp/ix.json)"
-          jq -c --arg nm "$IX" "{name:$nm,data:{value:.data.value,change_percent:(.data.change_percent//null),open:.data.open,high:.data.high,low:.data.low}}" /tmp/ix.json >> /tmp/idxall.parts
+          jq -c --arg nm "$IX" "{name:\$nm,data:{value:.data.value,change_percent:(.data.change_percent//null),open:.data.open,high:.data.high,low:.data.low}}" /tmp/ix.json >> /tmp/idxall.parts
           echo >> /tmp/idxall.parts
           else
           echo "⚠️ $IX مش متاح من oanor"
