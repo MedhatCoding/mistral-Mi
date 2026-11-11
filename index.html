@@ -1097,16 +1097,19 @@ async function renderMarket(force=false){
   let sparkIdx=null;
   try{sparkIdx=await yahooSpark([...new Set(IDX_DEF.flatMap(d=>d.cands))])}catch(e){sparkIdx=null}
   /* ⚡ EGX30 اللحظي: القيمة والتغير الحقيقيين من البورصة نفسها (oanor ولا 🤖 الريليه) — الياهو بييجيب تغير المؤشر غلط */
+  const ria=await relayIndexAll();
   const oix=await oanorIndex();
   await Promise.all(IDX_DEF.map(async(d,i)=>{
     idxLive[d.key]=(sparkIdx&&d.cands.map(s=>sparkIdx[s]).find(Boolean))||await getIndexData(d.cands);
     const live=idxLive[d.key];
     /* 🤖 لو الياهو واقف (بروكسيات محجوبة) — قيمة وتغير EGX30 الحقيقيين من الريليه لوحدهم */
     const rixOnly=(d.key==="egx30"&&oix&&!live);
-    const lv=(d.key==="egx30"&&oix&&live)?Object.assign({},live,{price:oix.value,chg:oix.chg}):(rixOnly?{price:oix.value,chg:oix.chg,hist:null,cur:"EGP"}:live);
+    const rlv=ria&&ria[d.key];
+    const lv0=(d.key==="egx30"&&oix&&live)?Object.assign({},live,{price:oix.value,chg:oix.chg}):(rixOnly?{price:oix.value,chg:oix.chg,hist:null,cur:"EGP"}:live);
+    const lv=rlv?((lv0&&lv0.hist)?Object.assign({},lv0,{price:rlv.value,chg:rlv.chg}):{price:rlv.value,chg:rlv.chg,hist:(lv0&&lv0.hist)||null,cur:"EGP"}):lv0;
     const el=$("idx-cards").children[i];
     if(lv){
-      el.innerHTML=`<div class="lbl small muted">${d.name} <span class="badge b-buy">🟢 مباشر${rixOnly?" · ⚡ ريليه":(lv===live?"":" · ⚡ oanor")}</span></div>
+      el.innerHTML=`<div class="lbl small muted">${d.name} <span class="badge b-buy">🟢 مباشر${rlv?" · ⚡ ريليه":(rixOnly?" · ⚡ ريليه":(lv===live?"":" · ⚡ oanor"))}</span></div>
         <div class="v ${d.key==="egx33"?"sharia-green":""}">${NF(lv.price)} <span class="small ${lv.chg>=0?"up":"down"}">${PCT(lv.chg)}</span></div>
         ${spark(lv.hist,120,34)}
         <div class="small muted">العملة: ${lv.cur==="EGP"?"جنيه مصري":lv.cur||"—"}${lv.verdict?" · اتجاه: "+lv.verdict.rec:""}</div>`;
@@ -2526,6 +2529,17 @@ async function relayIndex(){
   const d=j&&j.idx&&j.idx.data;
   if(!d||d.value==null)return null;
   return {value:d.value,chg:(d.change_percent!=null?d.change_percent:(d.open?(d.value-d.open)/d.open*100:0))};
+}
+/* ⚡ مؤشرات كل من الريليه (كلون في خانة idxA في live.json) — منطقة تعمل مع الأربعة محافظة على اتجاه واحد */
+async function relayIndexAll(){
+  const j=await relayFetch();
+  const A=(j&&j.idxA)||{};
+  const out={};
+  ["egx30","egx70","egx100","egx33"].forEach(function(k){
+    const d=A[k]&&A[k].data;
+    if(d&&d.value!=null)out[k]={value:d.value,chg:(d.change_percent!=null?d.change_percent:(d.open?(d.value-d.open)/d.open*100:0))};
+  });
+  return Object.keys(out).length?out:null;
 }
 /* ⚡ أسعار لحظية من oanor — باجي 20 سهم في النداء. لو مفيش مفتاح أو المفتاح فشل أو الحصة قربت تخلص:
    🤖 الريليه من GitHub هو البديل التلقائي — ولو هما الاتنين مش موجودين، الياهو هو الأساس زي ما هو */
@@ -4526,7 +4540,7 @@ function intradayRender(){
 function serverPicksFetch(){
   try{
     fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/picks.json?cb="+Date.now()).then(function(j){
-      if(!j||!j.t||!(j.buys||[]).length||Date.now()-j.t>90*60*1000)return;/* قديمة — الفحص المحلي يكمل عادي */
+      if(!j||!j.t||!(j.buys||[]).length||Date.now()-j.t>20*60*60*1000)return;/* أقدم من آخر جلسة — توصيات السيرفر مقبولة طوال ما هي من آخر جلسة متاحة */
       var mk=function(x){return {sym:x.s,n:x.n,price:x.p,chg:x.chg,ml:null,mk:!!x.mk,bt:(x.bt&&x.bt.d?x.bt:null),v:{rec:x.pr,cls:(x.cls||"rec-buy"),em:x.em,stars:(x.st||0),conf:(x.conf||0),sc:(x.sc||0),stop:x.stop,t1:x.t1,sup:x.sup,res:x.res,risk:x.risk,rs:(x.rs||[])}}};
       try{renderPicks({time:j.t,server:true,buys:(j.buys||[]).map(mk),sells:(j.sells||[]).map(mk)})}catch(z){}
     }).catch(function(){});
@@ -4574,7 +4588,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.98";
+  var APP_VER="3.99";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";

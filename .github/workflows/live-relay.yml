@@ -1,4 +1,4 @@
-# 🤖 Live Relay v2.3 — Mansa أساسي + إصلاح الافتتاح الناقص حسابيًا + فحص مؤشر EGX30 من Mansa + oanor مكمل
+# 🤖 Live Relay v2.4 — Mansa أساسي + إصلاح الافتتاح الناقص حسابيًا + فحص مؤشر EGX30 من Mansa + oanor مكمل
 name: 🤖 Live Relay — أسعار EGX اللحظية
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
           OANOR_KEY: ${{ secrets.OANOR_KEY }}
         run: |
           exec > /tmp/relay.log 2>&1
-          echo "== Live Relay v2.2 (Mansa) =="
+          echo "== Live Relay v2.4 (Mansa + oanor idx) =="
           if [ -z "$MANSA_API_KEY" ]; then echo "⚠️ مفيش MANSA_API_KEY"; exit 1; fi
           curl -sS --retry 2 --max-time 45 -w "%{http_code}" -o /tmp/mansa.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200" > /tmp/mansa.code 2>/tmp/mansa.err || true
           curl -sS --retry 2 --max-time 45 -w "%{http_code}" -o /tmp/mansa2.json -H "Authorization: Bearer $MANSA_API_KEY" "https://mansaapi.com/api/v1/markets/exchanges/EGX/stocks?limit=200&offset=200" > /tmp/mansa2.code 2>/tmp/mansa2.err || true
@@ -53,51 +53,38 @@ jobs:
           console.log("✅ Mansa: "+quotes.length+" سهم (من "+rows.length+") + اتحسب افتتاح "+dOpen+" سهم → live.json");
           MANSA_EOF
           node mansa_live.js
-          # 🔍 فحص قائمة مؤشرات Mansa + محاولة مؤشر مفرد
-          rm -f /tmp/midx.json /tmp/mprobe-indices.json /tmp/mprobe-one.json
-          curl -sS --max-time 20 -H "Authorization: Bearer $MANSA_API_KEY" -o /tmp/mprobe-indices.json "https://mansaapi.com/api/v1/markets/exchanges/EGX/indices?limit=50" || true
-          echo "== indices rows: $(jq '.data|length' /tmp/mprobe-indices.json 2>/dev/null)"
-          echo "== indices[0:3]: $(jq -c '.data[0:3]' /tmp/mprobe-indices.json 2>/dev/null)"
-          curl -sS --max-time 20 -H "Authorization: Bearer $MANSA_API_KEY" -o /tmp/mprobe-one.json "https://mansaapi.com/api/v1/markets/exchanges/EGX/indices/EGX30" || true
-          echo "== indices/EGX30: $(head -c 400 /tmp/mprobe-one.json 2>/dev/null)"
-          cat > mansa_idx.js <<'MIDX_EOF'
-          const fs=require("fs");
-          const pick=(o,keys)=>{for(const k of keys){if(o&&o[k]!=null)return o[k]}return null};
-          const files=["/tmp/mprobe-indices.json","/tmp/mprobe-one.json"];
-          const norm=s=>String(s||"").toUpperCase().replace(/\s+/g,"");
-          const is30=r=>norm(pick(r,["code","ticker","symbol","name"])).indexOf("EGX30")>=0||(Array.isArray(r.aliases)&&r.aliases.some(x=>norm(x)==="EGX30"));
-          for(const f of files){
-            let j=null;try{j=JSON.parse(fs.readFileSync(f,"utf8"))}catch(e){continue}
-            const arr=(j&&j.data&&Array.isArray(j.data))?j.data:((j&&j.data&&j.data.data&&Array.isArray(j.data.data))?j.data.data:((Array.isArray(j))?j:null));
-            const row=arr&&arr.find(is30);
-            if(row){
-              const v=pick(row,["value","close","price","last_price","last"]);
-              console.log("ℹ️ EGX30 row: "+JSON.stringify(row).slice(0,300));
-              if(v>0){
-                const td=norm(pick(row,["trade_date","date"]));
-                const today=new Date().toISOString().slice(0,10).replace(/-/g,"");
-                if(td&&td!==today){console.log("⚠️ قيمة Mansa قديمة (trade_date="+td+") — مش هنستخدمها");break}
-                fs.writeFileSync("/tmp/midx.json",JSON.stringify({data:{value:v,change_percent:pick(row,["change_pct","change_percent","changePercent"])}}));
-                console.log("✅ مؤشر EGX30 من Mansa: "+v);process.exit(0)
-              }
-            }
-          }
-          console.log("ℹ️ مفيش EGX30 ليف من Mansa");
-          MIDX_EOF
-          node mansa_idx.js || true
-          rm -f /tmp/idx.json
-          if [ -n "$OANOR_KEY" ] && curl -sS --retry 2 --max-time 20 -H "x-oanor-key: $OANOR_KEY" -o /tmp/resp.json "https://api.oanor.com/egx-api/v1/index?name=EGX30" && jq -e ".data" /tmp/resp.json >/dev/null 2>&1; then
-            jq -c "if (.data|type)==\"object\" then . else null end" /tmp/resp.json > /tmp/idx.json
-            echo "✅ idx من oanor"
-          elif [ -f /tmp/midx.json ]; then
-            cp /tmp/midx.json /tmp/idx.json
-            echo "✅ idx من Mansa (احتياطي)"
+          # ⚡ مؤشرات EGX الأربعة من oanor (EGX30 + EGX70 + EGX100 + EGX33) — لحظية لكروت السوق (Mansa مؤشراته قديمة من أبريل — مشتعملة)
+          rm -f /tmp/idxall.parts
+          if [ -n "$OANOR_KEY" ]; then
+          for IX in EGX30 EGX70 EGX100 EGX33; do
+          if curl -sS --retry 2 --max-time 20 -H "x-oanor-key: $OANOR_KEY" -o /tmp/ix.json "https://api.oanor.com/egx-api/v1/index?name=$IX" && jq -e ".data.value" /tmp/ix.json >/dev/null 2>&1; then
+          echo "✅ $IX: $(jq -c "{value:.data.value,change_percent:.data.change_percent}" /tmp/ix.json)"
+          jq -c --arg nm "$IX" "{name:$nm,data:{value:.data.value,change_percent:(.data.change_percent//null),open:.data.open,high:.data.high,low:.data.low}}" /tmp/ix.json >> /tmp/idxall.parts
+          echo >> /tmp/idxall.parts
           else
-            echo "⚠️ مؤشر EGX30 مش متاح — نكمّل من غيره"
+          echo "⚠️ $IX مش متاح من oanor"
           fi
-          if [ -f /tmp/idx.json ]; then
-            jq --slurpfile ix /tmp/idx.json ".idx=\$ix[0]" live.json > /tmp/live2.json && mv /tmp/live2.json live.json
+          done
+          cat > idxall_build.js <<'IXALL_EOF'
+          const fs=require("fs");
+          let j=null;try{j=JSON.parse(fs.readFileSync("live.json","utf8"))}catch(e){}
+          if(!j){console.log("❌ live.json مش موجود");process.exit(1)}
+          let rows=[];
+          try{const txt=fs.readFileSync("/tmp/idxall.parts","utf8");txt.split("\n").forEach(l=>{l=l.trim();if(!l)return;try{const x=JSON.parse(l);if(x&&x.name&&x.data)rows.push(x)}catch(e){}})}catch(e){}
+          const MAP={EGX30:"egx30",EGX70:"egx70",EGX100:"egx100",EGX33:"egx33"};
+          const A={};
+          rows.forEach(r=>{const k=MAP[r.name];if(k&&!A[k])A[k]={data:r.data}});
+          if(A.egx30)j.idx=A.egx30;
+          const rest={};Object.keys(A).forEach(k=>{if(k!=="egx30")rest[k]=A[k]});
+          if(Object.keys(rest).length)j.idxA=rest;
+          fs.writeFileSync("live.json",JSON.stringify(j));
+          console.log("✅ idx="+(j.idx?"EGX30":"none")+" · idxA keys: "+Object.keys(j.idxA||{}).join(","));
+          IXALL_EOF
+          node idxall_build.js || echo "⚠️ بناء المؤشرات فشل"
+          else
+          echo "⚠️ مفيش OANOR_KEY — المؤشرات مش هتتحدث"
           fi
+          
           # 🩻 مكمل oanor: أي سهم ناقصة من Mansa (MNHD) — السطر كله في نفس المحتوى علشان heredoc
           if [ -n "$OANOR_KEY" ]; then
           cat > need_patch.js <<'PATCH_EOF'
