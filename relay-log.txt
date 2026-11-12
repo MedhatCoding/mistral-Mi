@@ -1,0 +1,9 @@
+== Live Relay v2.4 (Mansa + oanor idx) ==
+✅ Mansa: 54 سهم (من 231) + اتحسب افتتاح 7 سهم → live.json
+✅ EGX30: {"value":52023.4,"change_percent":-0.91}
+⚠️ EGX70 مش متاح من oanor
+⚠️ EGX100 مش متاح من oanor
+⚠️ EGX33 مش متاح من oanor
+✅ idx=EGX30 · idxA keys: 
+🩻 محتاجين مكمل oanor لـ 1 سهم: MNHD
+🩻 oanor مكمل: اتضاف 0 سهم
