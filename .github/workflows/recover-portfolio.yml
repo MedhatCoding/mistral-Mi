@@ -1,6 +1,7 @@
 name: استعادة المحفظة من تاريخ Git
 # 🧯 v4: الملف تاريخيًا بيتخزن بايتات خام (ترميز مزدوج قديم) — بقرا البايتات مباشرة (Buffer من git show)
 # وبيجرب مفاتيح: TG_BOT_TOKEN ثم fallback. يرجع آخر نسخة فيها أسهم + يبعتها على تليجرام + تقرير recover-log.txt.
+# v5: الملفات بتتكتب في archive/ بدل جذر المستودع
 on:
   workflow_dispatch:
   push:
@@ -28,6 +29,7 @@ jobs:
           const {execSync}=require('child_process');
           const crypto=require('crypto');
           const fs=require('fs');
+          fs.mkdirSync('archive',{recursive:true});
           const lines=[];
           function aesDec(buf,key){
             if(buf.length<29)throw new Error('too short');
@@ -72,7 +74,7 @@ jobs:
           if(found){
             lines.push('النتيجة: اتلقت نسخة فيها '+found.holdings.length+' سهم — '+foundHow);
             const payload=JSON.stringify({holdings:found.holdings,funds:found.funds||[]});
-            fs.writeFileSync('pf_recovered.json',payload);
+            fs.writeFileSync('archive/pf_recovered.json',payload);
             const list=found.holdings.map(h=>'- '+h.t+' x '+h.qty+' (متوسط '+h.avg+')').join(' | ');
             msg='♻️ اتلقت نسخة محفظتك الأصلية ('+found.holdings.length+' سهم): '+list+'  ||  لترجيعها في التطبيق: انسخ السطر ده وحطه في (استيراد المحفظة من نص) في الإعدادات: '+payload;
           }else{
@@ -83,11 +85,11 @@ jobs:
             fetch('https://api.telegram.org/bot'+tok+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chat,text:msg})}).catch(function(){});
             lines.push('اتبعتت رسالة تليجرام');
           }
-          fs.writeFileSync('recover-log.txt',lines.join('\n')+'\n');
+          fs.writeFileSync('archive/recover-log.txt',lines.join('\n')+'\n');
           console.log(lines.join('\n'));
           EOF
           node recover.js
           git config user.name "mistral-Mi bot"
           git config user.email "actions@users.noreply.github.com"
-          git add recover-log.txt pf_recovered.json 2>/dev/null || git add recover-log.txt
-          git diff --cached --quiet || (git commit -m "🧯 استعادة v4: قراءة البايتات الخام مباشرة - تقرير recover-log.txt" && git push)
+          git add archive/recover-log.txt archive/pf_recovered.json 2>/dev/null || git add archive/recover-log.txt
+          git diff --cached --quiet || (git commit -m "🧯 استعادة: تقرير recover-log.txt في archive/" && git push)

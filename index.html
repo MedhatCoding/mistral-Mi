@@ -2913,11 +2913,11 @@ function botTick(manual){
   }
   if(w.hist.length>200)w.hist=w.hist.slice(-200);
   if(w.alerts.length>50)w.alerts=w.alerts.slice(-50);
-  /* 2) الشراء مرة واحدة كل يوم من أقوى توصيات الفحص الأخير */
+  /* 2) الشراء من أقوى توصيات الفحص الأخير — زي التداول الحقيقي: أي وقت فيه رصيد ومكان فاضي وتوصية طازة يشتري، والخروج الوحيد عند الهدف أو الوقف (أو البيع يدويًا) */
   const pk=store.get("egx_picks3",null);
   const today=paperToday();
   const fresh=pk&&pk.buys&&pk.buys.length&&pk.time&&Date.now()-pk.time<26*60*60*1000;
-  if(fresh&&w.day!==today){
+  if(fresh){
     const held={};
     for(let i=0;i<w.pos.length;i++)held[w.pos[i].s]=1;
     for(let i=0;i<pk.buys.length;i++){
@@ -2927,7 +2927,8 @@ function botTick(manual){
       const d=WATCH_CACHE[x.sym];
       const cur=d&&d.price;
       if(cur==null||cur<=0)continue;
-      const budget=Math.min(w.cash,w.start*0.2);
+      /* حجم الصفقة على حسب الرصيد المتاح: الرصيد الحالي يتوزع على عدد المراكز الفاضية — والنقد المرجع من بيع سابق يرجع يدور */
+      const budget=w.cash/Math.max(PAPER_MAX-w.pos.length,1);
       if(budget<1000)break;
       const q=Math.floor(budget/cur);
       if(q<1)continue;
@@ -3715,7 +3716,8 @@ function init(){
   safe("عرض السوق",()=>renderMarket());
   safe("ملخص المحفظة",renderPortfolioMini);
   /* التشغيل التلقائي: فحص كامل أول ما تفتح التطبيق لو التوصيات أقدم من ساعة — توصيات طازة من غير أي زر */
-  if(CFG.prefs.auto!==false&&(!PICKS||!PICKS.buys||!PICKS.buys.length||Date.now()-PICKS.time>60*60*1000))safe("فحص السوق التلقائي",()=>runScan());
+  /* التشغيل التلقائي: فحص كامل أول ما تفتح التطبيق دايمًا — مش آخر حالة متخزنة (لو عطّلت التلقائي من الإعدادات هيفضل محفوظ) */
+  if(CFG.prefs.auto!==false)safe("فحص السوق التلقائي",()=>runScan());
   else{safe("مراجعة قبل التنفيذ",autoRevalidate);}
   /* 🔁 مراجعة دورية تلقائية كل ٢٠ دقيقة أثناء الجلسة — بديل زر «راجع التوصيات» */
   if(CFG.prefs.auto!==false)setInterval(function(){safe("مراجعة دورية",autoRevalidate)},20*60*1000);
@@ -4511,8 +4513,9 @@ window.goldRender=goldRender;
 function intradayRender(){
   var box=document.getElementById("intraday-card");if(!box)return;
   try{
-    fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/intraday.json?cb="+Date.now()).then(function(j){
-      if(!j||!j.t){box.innerHTML="";return;}
+    box.innerHTML='<div class="card" style="border-color:rgba(255,180,84,.4)"><h3>⚡ مضاربة الجلسة — دخول وخروج نفس اليوم</h3><p class="small muted">⏳ جارٍ جلب مرشحي المضاربة من السيرفر…</p></div>';
+    fetchJSON("https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/intraday.json?cb="+Date.now(),12000).then(function(j){
+      if(!j||!j.t){box.innerHTML='<div class="card" style="border-color:rgba(255,180,84,.4)"><h3>⚡ مضاربة الجلسة — دخول وخروج نفس اليوم</h3><p class="small muted">مفيش بيانات مضاربة منشورة دلوقتي — بتتحدث كل ١٥ دقيقة أثناء الجلسة، هنجرب تاني تلقائيًا.</p></div>';setTimeout(intradayRender,3*60*1000);return;}
       var list=j.list||[];
       var h='<div class="card" style="border-color:rgba(255,180,84,.4)"><div class="flex-between"><h3>⚡ مضاربة الجلسة — دخول وخروج نفس اليوم</h3><span class="small muted">'+new Date(j.t).toLocaleString("ar-EG")+'</span></div>';
       h+='<p class="small" style="color:var(--amber);margin:6px 0 10px;line-height:1.7">⚠️ عالية المخاطرة: أسهم شريعة بزخم جلسة قوي وحجم تداول مضاعف. للمتابعة اللحظية فقط — اخرج بالهدف أو بالوقف داخل الجلسة نفسها.</p>';
@@ -4534,7 +4537,7 @@ function intradayRender(){
       }
       h+='<p class="small muted" style="margin-top:10px">🛰️ بتتحدث كل ١٥ دقيقة أثناء الجلسة من Mansa API · مرشحة آليًا بفلتر الشريعة والزخم والحجم · قرار الدخول والخروج مسؤوليتك.</p></div>';
       box.innerHTML=h;
-    }).catch(function(){try{box.innerHTML="";}catch(z){}});
+    }).catch(function(){try{box.innerHTML='<div class="card" style="border-color:rgba(255,180,84,.4)"><h3>⚡ مضاربة الجلسة</h3><p class="small muted">⚠️ تعذر جلب مرشحي المضاربة — إعادة محاولة تلقائية بعد دقيقة، أو اضغط تحديث من تبويب التوصيات.</p></div>';}catch(z){}setTimeout(intradayRender,60*1000);});
   }catch(e){}
 }
 function serverPicksFetch(){
@@ -4588,7 +4591,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 <script>/* EGX-VER-BADGE: شارة رقم الإصدار — بتقولنا السيرفر (Streamlit أو غيره) شغال على أي كوميت */
 (function(){try{
-  var APP_VER="3.99";
+  var APP_VER="4.00";
   var d=document.createElement("div");
   d.textContent="⚙️ v"+APP_VER;
   d.style.cssText="position:fixed;bottom:88px;left:8px;z-index:99;background:rgba(12,21,38,.94);border:1px solid #27406e;border-radius:999px;padding:4px 10px;font-size:11px;color:#8da3c9;pointer-events:none;direction:ltr";
@@ -4597,6 +4600,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 </body>
 </html>
+
 
 
 

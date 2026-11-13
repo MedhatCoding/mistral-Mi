@@ -1,5 +1,7 @@
 # 🛰️ المتداول الوهمي على السيرفر — بيع وشراء تلقائي حتى لو التطبيق مقفول
 # الحالة محفوظة على فرع paper (paper.json) والتطبيق بيعرضها في كارت «المتداول على السيرفر»
+# v2: شراء من توصيات السيرفر (picks.json) أو محرك التحليل في أي وقت فيه رصيد ومكان فاضي — مش مرة واحدة في اليوم
+#     والخروج الوحيد عند الهدف أو الوقف، والنقد المرجع من البيع بيرجع يدور زي التداول الحقيقي
 name: 🛰️ المتداول الوهمي على السيرفر
 on:
   schedule:
@@ -26,6 +28,7 @@ jobs:
           curl -fsSL --retry 2 --max-time 30 -o live.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/live/live.json" || echo "⚠️ live.json مش متاحة"
           curl -fsSL --retry 2 --max-time 60 -o hist.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/hist/hist.json"             || { echo "❌ hist.json مش متاحة — البوت مش هينفع"; exit 1; }
           curl -fsSL --retry 2 --max-time 30 -o paper.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/paper/paper.json"             || echo '{"cash":100000,"start":100000,"pos":[],"hist":[],"curve":[],"day":""}' > paper.json
+          curl -fsSL --retry 2 --max-time 30 -o picks.json "https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/picks/picks.json"             || echo '{}' > picks.json
       - name: استخراج محرك التحليل من index.html
         shell: bash
         run: |
@@ -56,6 +59,7 @@ jobs:
           function readJSON(p,d){try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){return d}}
           const live=readJSON('live.json',null);
           const hist=readJSON('hist.json',null);
+          const picks=readJSON('picks.json',null);
           if(!hist||!hist.stocks){console.log('❌ hist.json مش متاح');process.exit(0)}
           const w=readJSON('paper.json',null)||{};
           if(typeof w.cash!=="number"){w.cash=100000;w.start=100000;w.pos=[];w.hist=[];w.curve=[];w.day=""}
@@ -79,34 +83,45 @@ jobs:
             }
           }
           if(w.hist.length>200)w.hist=w.hist.slice(-200);
-          /* 2) الشراء مرة واحدة كل يوم من أقوى توصيات المحرك على الإغلاقات + سعر اللحظة */
-          if(w.day!==today&&Object.keys(Q).length>10){
-            const cands=[];
+          /* 2) الشراء من توصيات السيرفر (picks.json) أو محرك التحليل احتياطيًا — أي وقت فيه رصيد ومكان فاضي (مش مرة واحدة في اليوم) */
+          const MAXPOS=5;
+          const held={};w.pos.forEach(function(p){held[p.s]=1});
+          const cands=[];
+          const pkFresh=picks&&picks.t&&(Date.now()-picks.t<26*60*60*1000)&&Array.isArray(picks.buys);
+          if(pkFresh){
+            picks.buys.forEach(function(x){
+              if(!x||!x.s||!(+x.p>0))return;
+              if(held[x.s])return;
+              cands.push({sym:x.s,name:(x.n||x.s),price:+x.p,t1:(+x.t1>0?+x.t1:null),stop:(+x.stop>0?+x.stop:null),sc:(+x.sc||0),rec:(x.pr||"توصية السيرفر"),stars:(+x.st||0),src:"picks"});
+            });
+          }
+          if(!cands.length&&Object.keys(Q).length>10){
             SHARIA.forEach(function(sym){
               const raw=hist.stocks[sym]||[];
               const arr=raw.filter(function(c){return c&&c.c>0}).map(function(c){return {d:(c.d||null),o:(c.o!=null?c.o:c.c),h:(c.h!=null?c.h:c.c),l:(c.l!=null?c.l:c.c),c:c.c,v:(c.v||0)}});
               if(arr.length<60)return;
               const v=analyze(arr);if(!v||v.sc<2)return;
               const price=Q[sym]||arr[arr.length-1].c;
-              cands.push({sym:sym,name:(NAMES[sym]||sym),v:v,price:price,vol:(arr[arr.length-1].v||0)});
+              cands.push({sym:sym,name:(NAMES[sym]||sym),price:price,t1:(v.t1||null),stop:(v.stop||null),sc:v.sc,rec:v.rec,stars:v.stars||0,src:"engine",vol:(arr[arr.length-1].v||0)});
             });
             const liq=cands.filter(function(r){return r.vol==null||r.price*r.vol>=1000000});
-            liq.sort(function(a,b){return b.v.sc-a.v.sc});
-            const held={};w.pos.forEach(function(p){held[p.s]=1});
-            for(const xx of liq.slice(0,3)){
-              if(w.pos.length>=5)break;
-              if(held[xx.sym])continue;
-              const cur=Q[xx.sym];if(cur==null||cur<=0)continue;
-              const budget=Math.min(w.cash,w.start*0.2);if(budget<1000)break;
-              const q=Math.floor(budget/cur);if(q<1)continue;
-              const gr=(xx.v.t1&&xx.price)?xx.v.t1/xx.price:1.08;
-              const gs=(xx.v.stop&&xx.price)?xx.v.stop/xx.price:0.94;
-              w.cash-=q*cur;
-              w.pos.push({s:xx.sym,q:q,b:cur,t:cur*gr,sl:cur*gs,d:Date.now(),sc:xx.v.sc,n:xx.name,stars:xx.v.stars,pr:xx.v.rec,pt:Date.now()});
-              held[xx.sym]=1;acted.push("📈 اشترى "+xx.sym+" — "+q+" سهم بـ"+cur.toFixed(2)+" (توصية: "+xx.v.rec+")");
-            }
-            w.day=today;
+            cands.length=0;liq.forEach(function(r){cands.push(r)});
           }
+          cands.sort(function(a,b){return (b.sc||0)-(a.sc||0)});
+          for(const xx of cands){
+            if(w.pos.length>=MAXPOS)break;
+            if(held[xx.sym])continue;
+            const cur=Q[xx.sym]||xx.price;if(cur==null||cur<=0)continue;
+            /* حجم الصفقة على حسب الرصيد المتاح: الرصيد يتوزع على المراكز الفاضية — والنقد المرجع من البيع بيرجع يدور */
+            const budget=w.cash/Math.max(MAXPOS-w.pos.length,1);if(budget<1000)break;
+            const q=Math.floor(budget/cur);if(q<1)continue;
+            const gr=(xx.t1&&xx.price)?xx.t1/xx.price:1.08;
+            const gs=(xx.stop&&xx.price)?xx.stop/xx.price:0.94;
+            w.cash-=q*cur;
+            w.pos.push({s:xx.sym,q:q,b:cur,t:(xx.t1&&xx.price)?xx.t1:cur*gr,sl:(xx.stop&&xx.price)?xx.stop:cur*gs,d:Date.now(),sc:xx.sc,n:xx.name,stars:xx.stars||0,pr:xx.rec||"—",pt:Date.now()});
+            held[xx.sym]=1;acted.push("📈 اشترى "+xx.sym+" — "+q+" سهم بـ"+cur.toFixed(2)+(xx.src==="picks"?" (توصية سيرفر)":" (محرك)")+(xx.rec?" · "+xx.rec:""));
+          }
+          w.day=today;
           /* 3) قيمة المحفظة + نقطة منحنى يومية */
           let val=w.cash;
           w.pos.forEach(function(p){val+=(Q[p.s]||p.b)*p.q});
