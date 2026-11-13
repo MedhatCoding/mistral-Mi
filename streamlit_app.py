@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-عقار — محلل البورصة المصرية بالذكاء الاصطناعي
+mistral-Mi — محلل البورصة المصرية بالذكاء الاصطناعي
 غلاف Streamlit يعرض التطبيق الكامل (index.html) داخل الصفحة.
 يعمل على Streamlit Cloud (share.streamlit.io) وعلى جهازك المحلي.
 """
@@ -10,7 +10,7 @@ from pathlib import Path
 
 st.set_page_config(
     page_title="mistral-Mi — محلل البورصة المصرية بالذكاء الاصطناعي",
-    page_icon="https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/0a7d4429de176ae958c151cde00a1791776e4873/logo.jpg",
+    page_icon="https://raw.githubusercontent.com/MedhatCoding/mistral-Mi/main/logo.jpg",
     layout="wide",
 )
 
