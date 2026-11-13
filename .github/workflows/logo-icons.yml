@@ -1,0 +1,50 @@
+# 🖼️ توليد أيقونات الـPWA من اللوجو — أي تحديث لـ logo.jpg بيجدد icon-180/192/512 تلقائيًا
+name: 🖼️ أيقونات الـPWA من اللوجو
+on:
+  push:
+    branches: [main]
+    paths: ["logo.jpg", ".github/workflows/logo-icons.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: logo-icons
+  cancel-in-progress: true
+
+jobs:
+  icons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: تثبيت Pillow
+        run: pip install --quiet pillow
+      - name: توليد الأيقونات من logo.jpg
+        run: |
+          python3 - <<'EOF'
+          from PIL import Image, ImageOps
+          img = Image.open('logo.jpg').convert('RGB')
+          # خلفية سوداء زي خلفية التطبيق — الصورة تتوسّط لو مش مربعة
+          for s in (180, 192, 512):
+              side = max(img.size)
+              bg = Image.new('RGB', (side, side), (10, 15, 28))
+              off = ((side - img.size[0]) // 2, (side - img.size[1]) // 2)
+              bg.paste(img, off)
+              bg = bg.resize((s, s), Image.LANCZOS)
+              bg.save(f'icon-{s}.png', 'PNG')
+              print(f'✅ icon-{s}.png')
+          EOF
+      - name: رفع الأيقونات
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add icon-180.png icon-192.png icon-512.png
+          git diff --cached --quiet && echo "مفيش تغيير" && exit 0
+          git commit -m "🖼️ أيقونات الـPWA من logo.jpg [skip ci]"
+          git pull --rebase origin main || true
+          git push
