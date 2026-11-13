@@ -1599,6 +1599,8 @@ async function runScan(){
   if(arr.length)safe("شهادة المحرك",()=>{engineBT();renderEngineBT();});
   if(arr.length)safe("لقطة قيمة المحفظة",pfSnap);
   renderPicks(outp);
+  /* لو الفحص المحلي ملقاش فرص، رجّع توصيات السيرفر من آخر جلسة بدل ما الشاشة تفضل فاضية */
+  if(arr.length&&!(outp.buys&&outp.buys.length))safe("توصيات آخر جلسة",()=>serverPicksFetch());
   $("scan-status").textContent=arr.length?("تم فحص "+arr.length+" سهمًا — "+new Date().toLocaleTimeString("ar-EG")):"⚠️ فشل جلب الأسعار المباشرة — جرّب إعادة الفحص";
   $("scan-bar-wrap").classList.add("hide");
   $("btn-scan").disabled=false;
@@ -4600,6 +4602,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
 </script>
 </body>
 </html>
+
 
 
 
