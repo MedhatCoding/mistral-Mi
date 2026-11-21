@@ -1,0 +1,12 @@
+:root {
+  --bg: #0a0f1c; --card: #101a30; --card2: #0c1526; --border: #1c2b4a; --border2: #27406e;
+  --text: #eaf1ff; --muted: #8da3c9; --accent: #4f8cff; --accent2: #22d3a5;
+  --green: #2ecc8f; --red: #ff5c72; --amber: #ffb454; --violet: #9d7bff; --gold: #ffd166;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: radial-gradient(1100px 500px at 85% -5%, #14234a 0%, var(--bg) 55%);
+  color: var(--text); min-height: 100vh;
+  font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
+}
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 16px; }
