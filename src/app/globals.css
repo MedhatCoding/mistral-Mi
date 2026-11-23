@@ -1,3 +1,4 @@
+@import "./buttons.css";
 :root {
   --bg: #0a0f1c; --card: #101a30; --card2: #0c1526; --border: #1c2b4a; --border2: #27406e;
   --text: #eaf1ff; --muted: #8da3c9; --accent: #4f8cff; --accent2: #22d3a5;
