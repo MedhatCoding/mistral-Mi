@@ -3,6 +3,7 @@ import IntradayCard from "@/components/IntradayCard";
 import ServerPicksCard from "@/components/ServerPicksCard";
 import PaperBotCard from "@/components/PaperBotCard";
 import LiveMoversCard from "@/components/LiveMoversCard";
+import GoldCard from "@/components/GoldCard";
 
 export const metadata = {
   title: "التوصيات — mistral-Mi",
@@ -15,6 +16,7 @@ export default function ModernPage() {
       <IntradayCard />
       <ServerPicksCard />
       <PaperBotCard />
+      <GoldCard />
       <p className="muted small" style={{ textAlign: "center" }}>
         نسخة React التدريجية — الإدخالات والمحفظة والإعدادات لسه في <a href="/">التطبيق الكامل</a>.
       </p>

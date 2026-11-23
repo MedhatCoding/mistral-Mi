@@ -2732,7 +2732,7 @@ async function autoRevalidate(){
 }
 
 /* ═════════════════════════ 12.10) 💾 النسخ الاحتياطي والاستعادة — كل بياناتك في ملف واحد على أي جهاز ═════════════════════════ */
-const BK_KEYS=["egx_holdings","egx_funds","egx_watch2","egx_picks3","egx_ml_db","egx_prefs","egx_ai_cfg","egx_journal","egx_paper","egx_reclog","egx_tg","egx_pricealerts","egx_news2","egx_enginebt_hist","egx_weekly_ts","egx_pfval_hist","egx_oanor","egx_ghpat"];
+const BK_KEYS=["egx_holdings","egx_funds","egx_watch2","egx_picks3","egx_ml_db","egx_prefs","egx_ai_cfg","egx_journal","egx_paper","egx_reclog","egx_pricealerts","egx_news2","egx_enginebt_hist","egx_weekly_ts","egx_pfval_hist","egx_oanor","egx_ghpat"];
 function bkData(){
   const o={app:"aqqar-egx",v:1,at:new Date().toISOString()};
   BK_KEYS.forEach(function(k){const v=store.get(k,null);if(v!=null)o[k]=v});
@@ -3228,7 +3228,7 @@ $("nc-calc").onclick=function(){
 
 /* ═════════════════════════ 12.17) 📨 إشعارات تليجرام ═════════════════════════ */
 function tgSend(msg){
-  const c=store.get("egx_tg",{});
+  const c=store.get({});
   if(!c.token||!c.chat)return Promise.resolve(false);
   return fetch("https://api.telegram.org/bot"+c.token+"/sendMessage?chat_id="+encodeURIComponent(c.chat)+"&text="+encodeURIComponent(msg)).then(r=>r.ok).catch(()=>false);
 }
