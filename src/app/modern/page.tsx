@@ -1,10 +1,13 @@
 /* تبويب "التوصيات" بنسخة React — تقرأ من نفس مصادر الريليه */
+import dynamic from "next/dynamic";
 import IntradayCard from "@/components/IntradayCard";
 import ServerPicksCard from "@/components/ServerPicksCard";
 import PaperBotCard from "@/components/PaperBotCard";
 import LiveMoversCard from "@/components/LiveMoversCard";
 import GoldCard from "@/components/GoldCard";
 import Egx30Card from "@/components/Egx30Card";
+
+const ScannerCard = dynamic(() => import("@/components/ScannerCard"), { ssr: false });
 
 export const metadata = {
   title: "التوصيات — mistral-Mi",
@@ -16,6 +19,7 @@ export default function ModernPage() {
       <Egx30Card />
       <LiveMoversCard />
       <IntradayCard />
+      <ScannerCard />
       <ServerPicksCard />
       <PaperBotCard />
       <GoldCard />
