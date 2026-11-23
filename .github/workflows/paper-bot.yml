@@ -9,6 +9,8 @@ on:
   workflow_dispatch: {}
 
 permissions:
+  actions: write
+
   contents: write
 
 concurrency:
@@ -164,3 +166,28 @@ jobs:
           git commit -qm "chore: 🛰️ حالة المتداول الوهمي على السيرفر [skip ci]"
           git push -qf "https://x-access-token:$GH_TOKEN@github.com/MedhatCoding/mistral-Mi.git" paper
           echo "✅ paper.json اتنشرت"
+
+      - name: 🔗 سلسلة الدورة التالية كل 15 دقيقة أثناء الجلسة
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WF="paper-bot.yml"
+          D=$(date +%u); H=$(date +%M | sed 's/^0//'); HH=$(date +%H)
+          inDays=$([ "$D" -eq 7 ] || ([ "$D" -ge 1 ] && [ "$D" -le 4 ]) && echo yes || echo no)
+          inHours=$([ "${HH#0}" -ge 7 ] && [ "${HH#0}" -lt 13 ] && echo yes || echo no)
+          if [ "$inDays" = "yes" ] && [ "$inHours" = "yes" ]; then
+            WAIT=$(( 900 - $(date +%s) % 900 + 10 )); echo "🕒 هنرأخر الدورة التالية بعد $WAIT ثانية"; sleep $WAIT
+            HH2=$(date +%H); D2=$(date +%u)
+            ok2=$([ "$D2" -eq 7 ] || ([ "$D2" -ge 1 ] && [ "$D2" -le 4 ]) && echo yes || echo no)
+            ok3=$([ "${HH2#0}" -ge 7 ] && [ "${HH2#0}" -lt 13 ] && echo yes || echo no)
+            if [ "$ok2" = "yes" ] && [ "$ok3" = "yes" ]; then
+              curl -fsSL -X POST -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/$WF/dispatches" \
+                -d '{"ref":"main"}' && echo "✅ الدورة التالية انطلقت" || echo "⚠️ فشل التشغيل — الجدولة هتلقاها جرب تاني"
+            else
+              echo "خرجنا من توقيت الجلسة — إنهاء السلسلة"
+            fi
+          else
+            echo "خارج توقيت الجلسة — إنهاء السلسلة"
+          fi
