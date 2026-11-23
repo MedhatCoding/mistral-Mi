@@ -9,4 +9,16 @@ body {
   color: var(--text); min-height: 100vh;
   font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
 }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 16px; }
+a { color: var(--accent2); }
+h3 { font-size: 16px; }
+h4 { font-size: 14px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.metrics { display: grid; gap: 4px; font-size: 13.5px; margin: 8px 0; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.num { direction: ltr; unicode-bidi: embed; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  background: rgba(255, 180, 84, 0.14); color: var(--amber); margin-inline-start: 6px; }
