@@ -1,0 +1,1 @@
+export const NF=(v)=>v==null?0:v;
