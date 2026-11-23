@@ -1,0 +1,20 @@
+/* أزرار مشتركة لصفحات React (نفس أزرار التطبيق الكامل) */
+.btn {
+  background: var(--card2); border: 1px solid var(--border); color: var(--text);
+  padding: 9px 15px; border-radius: 10px; cursor: pointer; font-size: 13.5px;
+  font-family: inherit; transition: .15s;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: linear-gradient(135deg, #2f6bd8, #4f8cff); border: none; font-weight: 600; }
+.btn.mini { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+.btn.danger { border-color: var(--red); color: var(--red); }
+input, select, textarea {
+  background: var(--card2); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); padding: 9px 12px; font-size: 14px; font-family: inherit; outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { color: var(--muted); font-weight: 600; text-align: right; padding: 8px 10px;
+  border-bottom: 1px solid var(--border2); font-size: 12.5px; white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
