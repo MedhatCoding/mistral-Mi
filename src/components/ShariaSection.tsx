@@ -2,7 +2,7 @@
 
 /* قسم الشريعة الكامل: جدول أسهم الشريعة بقرارات المحرك + نسب التطهير + حاسبة التطهير + صناديق الشريعة */
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { analyze, SHARIA } from "@/lib/engine";
 import { NAMES } from "@/lib/names";
 import { PURIFY, FUNDS_CATALOG } from "@/lib/shariaData";
@@ -26,25 +26,10 @@ export default function ShariaSection() {
   const [rate, setRate] = useState("");
   const [tahrir, setTahrir] = useState("");
 
-  const load = useCallback(async () => {
+  const load = async () => {
     const [hist, live] = await Promise.all([
       fetchJSON<Hist>(RAW(BRANCHES.hist, "hist.json"), 30000),
       fetchJSON<Live>(RAW(BRANCHES.live, "live.json"), 10000),
-    ]);
-    let h = hist;
-    if (!h || !h.stocks) { const c0 = hist ? null : null; h = h || { stocks: {} }; }
-    const stocks = (h && h.stocks) || {};
-    const LQ: Record<string, Quote> = {};
-    (live?.quotes || []).forEach(q => { if (q.ticker && q.price) LQ[q.ticker] = q });
-    const setQuotes = useState(null)[1];
-    setQuotes; // noop — keep TS quiet
-  }, []);
-  useEffect(() => { load2(); }, []);
-
-  const load2 = async () => {
-    const [hist, live] = await Promise.all([
-      fetchJSON<Hist>(RAW(BRANCHES.hist, "hist.json"), 30000),
-      fetchJSON<Live>(RAW(BRANCHES.live, "live.json"), 10000).catch(() => null),
     ]);
     const stocks = (hist && hist.stocks) || {};
     const LQ: Record<string, Quote> = {};
@@ -74,7 +59,7 @@ export default function ShariaSection() {
     setStale(!hist);
   };
 
-  useEffect(() => { load2(); }, []);
+  useEffect(() => { load(); }, []);
 
   const calcTahrir = () => {
     const a = +amount, r = +rate;
@@ -98,7 +83,7 @@ export default function ShariaSection() {
       <div className="card">
         <h3>أصول الشريعة وقرارات المحرك</h3>
         <table style={{ marginTop: 8 }}>
-          <thead><tr><th>الشركة</th><th>الرمز</th><th>القطاع</th><th>السعر</th><th>التغير</th><th>التطهير</th><th>قرار المحرك</th></tr></thead>
+          <thead><tr><th>الشركة</th><th>الرمز</th><th>السعر</th><th>التغير</th><th>التطهير</th><th>قرار المحرك</th></tr></thead>
           <tbody>
             {SHARIA.map(sym => {
               const w = rows[sym];
@@ -107,7 +92,6 @@ export default function ShariaSection() {
                 <tr key={sym}>
                   <td><b>{NAMES[sym] || sym}</b></td>
                   <td className="num">{sym}</td>
-                  <td className="muted small">{NAMES[sym] ? "" : sym}</td>
                   <td className="num">{w ? NF(w.price) : "—"}</td>
                   <td className="num" style={{ color: w && w.chg >= 0 ? "var(--green)" : "var(--red)" }}>{w ? PCT(w.chg) : "—"}</td>
                   <td>{pur != null ? pur + "%" : <span className="muted small">راجع قوائمك</span>}</td>
@@ -117,7 +101,7 @@ export default function ShariaSection() {
             })}
           </tbody>
         </table>
-        <button className="btn mini" style={{ marginTop: 10 }} onClick={load2}>🔄 تحديث</button>
+        <button className="btn mini" style={{ marginTop: 10 }} onClick={load}>🔄 تحديث</button>
       </div>
 
       <div className="card">
@@ -144,7 +128,6 @@ export default function ShariaSection() {
             ))}
           </tbody>
         </table>
-        <p className="small muted" style={{ marginTop: 8 }}>الصناديق المصرية بتنشر أسعارها من غير API — حدّث الـ NAV من كشف حسابك. وملاحظة: مزوّد صناديق مباشر بيرجع 401 حاليًا في الريليه.</p>
       </div>
 
       <p className="muted small" style={{ textAlign: "center" }}>
