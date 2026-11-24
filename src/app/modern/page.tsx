@@ -8,6 +8,7 @@ import GoldCard from "@/components/GoldCard";
 import Egx30Card from "@/components/Egx30Card";
 
 const ScannerCard = dynamic(() => import("@/components/ScannerCard"), { ssr: false });
+const AiSummaryCard = dynamic(() => import("@/components/AiSummaryCard"), { ssr: false });
 
 export const metadata = {
   title: "التوصيات — mistral-Mi",
@@ -20,12 +21,19 @@ export default function ModernPage() {
       <LiveMoversCard />
       <IntradayCard />
       <ScannerCard />
+      <AiSummaryCard />
       <ServerPicksCard />
       <PaperBotCard />
       <GoldCard />
-      <p className="muted small" style={{ textAlign: "center" }}>
-        <a href="/portfolio">💼 محفظتي</a> · <a href="/">التطبيق الكامل</a>
-      </p>
+      <nav className="row" style={{ justifyContent: "center", flexWrap: "wrap", gap: 8 }}>
+        <a className="btn mini" href="/stocks">📋 كل الأسهم</a>
+        <a className="btn mini" href="/sharia">☪️ الشريعة</a>
+        <a className="btn mini" href="/ml">🧠 التعلم الآلي</a>
+        <a className="btn mini" href="/alerts">🚨 التنبيهات</a>
+        <a className="btn mini" href="/journal">📓 سجل القرارات</a>
+        <a className="btn mini" href="/portfolio">💼 محفظتي</a>
+        <a className="btn mini" href="/">التطبيق الكامل</a>
+      </nav>
     </main>
   );
 }
