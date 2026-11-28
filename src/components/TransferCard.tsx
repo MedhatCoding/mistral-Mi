@@ -77,9 +77,24 @@ export default function TransferCard() {
     } catch { setState("⚠️ اللي لزيزته مش JSON صالح — انسخه تاني كامل."); }
   };
 
+  const lsGet = (k: string) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null } catch { return null } };
+
+  const doExport = async () => {
+    const o: any = { app: "mistral-Mi", v: 2, at: new Date().toISOString() };
+    ["egx_holdings","egx_funds","egx_journal","egx_paper","egx_ml_db","egx_prefs","egx_pricealerts"].forEach((k) => { const v = lsGet(k); if (v != null) o[k] = v; });
+    const j = JSON.stringify(o);
+    const blob = new Blob([j], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "mistral-mi-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+    setState("✅ النسخة الاحتياطية اتنزلت — احتفظ بيها في مكان آمن (وعمرها ما تشاركها).");
+  };
+
   return (
     <div className="card">
-      <h3>📦 نقل بيانات النسخة القديمة (Streamlit)</h3>
+      <h3>📦 النسخ الاحتياطي ونقل البيانات</h3>
       <p className="small muted" style={{ lineHeight: 1.8, margin: "6px 0 10px" }}>
         من التطبيق القديم: افتح <b>الإعدادات → النسخة الاحتياطية</b> واضغط <b>«📋 نسخ للمشاركة»</b> (أو نزّل ملف aqqar-backup)،
         وبعدين لزق النص هنا أو اختار الملف. الملف فيه محفظتك وصناديقك وسجل قراراتك كامل — من غير أي تشفير.
@@ -92,6 +107,10 @@ export default function TransferCard() {
       <div className="row" style={{ marginTop: 8 }}>
         <button className="btn mini" onClick={handlePaste} disabled={!paste.trim()}>📥 استيراد</button>
         {state && <span className="small">{state}</span>}
+      </div>
+      <div className="row" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+        <button className="btn ok mini" onClick={doExport}>💾 نزّل نسخة احتياطية جديدة</button>
+        <span className="small muted">محفظتك وصناديقك وسجل قراراتك وتنبيهاتك وإعداداتك — في ملف واحد.</span>
       </div>
       <p className="small muted" style={{ marginTop: 8 }}>
         الأسهم الموجودة عندك حاليًا: {readHoldings().length} — الاستيراد بيدمج (السهم المكرر بيتحدث بالقيمة الجديدة) وما بيمسحش أي حاجة.
