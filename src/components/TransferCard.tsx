@@ -1,11 +1,12 @@
 "use client";
 
 /* 📦 نقل البيانات من النسخة القديمة (Streamlit) — استيراد ملف النسخة الاحتياطية أو لصقها
-   يقبل: ملف aqqar-backup كامل (aqqar-egx) · أو مصفوفة egx_holdings مجردة [{t,qty,avg}] */
+   يقبل: ملف aqqar-backup كامل (aqqar-egx) — محفظة + صناديق + سجل قرارات · أو مصفوفة egx_holdings مجردة */
 
 import { useRef, useState } from "react";
 
 type Holding = { t: string; qty: number; avg: number };
+type JEntry = { t: number; sym: string; act: string; why: string };
 
 const readHoldings = (): Holding[] => { try { return JSON.parse(localStorage.getItem("egx_holdings") || "[]") } catch { return [] } };
 
@@ -27,6 +28,17 @@ export default function TransferCard() {
       qty: +h.qty,
       avg: +h.avg,
     })).filter((h: Holding) => h.t && h.qty > 0 && h.avg > 0);
+  };
+
+  const applyJournal = (entries: JEntry[] | null) => {
+    if (!entries || !entries.length) return;
+    const clean = entries.filter(e => e && e.t && e.sym && e.act).map(e => ({ t: +e.t, sym: String(e.sym).toUpperCase(), act: String(e.act), why: String(e.why || "") }));
+    if (!clean.length) return;
+    const cur = (() => { try { return JSON.parse(localStorage.getItem("egx_journal") || "[]") } catch { return [] } })();
+    const seen = new Set(cur.map((e: JEntry) => e.t + "|" + e.sym + "|" + e.act));
+    const merged = cur.concat(clean.filter(e => !seen.has(e.t + "|" + e.sym + "|" + e.act)));
+    try { localStorage.setItem("egx_journal", JSON.stringify(merged)) } catch {}
+    setState((s) => (s.indexOf("✅") === 0 ? s + " وسجل القرارات اتنقل (" + clean.length + " قرار)" : "✅ سجل القرارات اتنقل: " + clean.length + " قرار."));
   };
 
   const applyHoldings = (list: Holding[], alsoFunds: any[] | null) => {
@@ -51,6 +63,7 @@ export default function TransferCard() {
       try {
         const obj = JSON.parse(String(rd.result));
         applyHoldings(normalize(obj), Array.isArray(obj && obj.egx_funds) ? obj.egx_funds : null);
+        applyJournal(Array.isArray(obj && obj.egx_journal) ? obj.egx_journal : null);
       } catch { setState("⚠️ الملف مش JSON صالح — نزّله تاني من النسخة القديمة."); }
     };
     rd.readAsText(f);
@@ -60,6 +73,7 @@ export default function TransferCard() {
     try {
       const obj = JSON.parse(paste.trim());
       applyHoldings(normalize(obj), Array.isArray(obj && obj.egx_funds) ? obj.egx_funds : null);
+      applyJournal(Array.isArray(obj && obj.egx_journal) ? obj.egx_journal : null);
     } catch { setState("⚠️ اللي لزيزته مش JSON صالح — انسخه تاني كامل."); }
   };
 
